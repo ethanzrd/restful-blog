@@ -15,6 +15,7 @@ from sqlalchemy.exc import OperationalError, IntegrityError
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_gravatar import Gravatar
+import os
 
 # ------------------ END BLOCK ------------------
 
