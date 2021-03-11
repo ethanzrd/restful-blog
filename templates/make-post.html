@@ -1,0 +1,47 @@
+{% import "bootstrap/wtf.html" as wtf %}
+{% extends "bootstrap/base.html" %}
+{% block content %}
+{% include "header.html" %}
+<!-- Page Header -->
+<header class="masthead" style="background-image: url('{{ url_for('static', filename='img/edit-bg.jpg')}}')">
+    <div class="overlay"></div>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="page-heading">
+                    {% if edit != True %}
+                    <h1>New Post</h1>
+                    <span class="subheading">Add new posts to your website!</span>
+                    {% else %}
+                    <h1>Edit Post</h1>
+                    <span class="subheading">Currently Editing: {{ post.title }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="container" style="margin-bottom: 20px;">
+    {% with messages = get_flashed_messages() %}
+    {% for message in messages %}
+    <p style="color: red;">{{ message }}</p>
+    {% endfor %}
+    {% endwith %}
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto" style="line-height: 2.5;">
+            {% if edit != True %}
+            <form action="{{ url_for('add_post') }}" method="post" novalidate>
+                {% else %}
+                <form action="{{ url_for('edit_post', post_id=post.id) }}" method="post" novalidate>
+                    {% endif %}
+                    {{ ckeditor.load() }}
+                    {{ wtf.quick_form(form=form, button_map={"submit": "primary"}) }}
+                </form>
+        </div>
+    </div>
+</div>
+<hr>
+
+{% include "footer.html" %}
+{% endblock %}

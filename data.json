@@ -1,0 +1,11 @@
+{
+    "website_configuration": {
+        "name": "The Life of Ethan",
+        "homepage_title": "My Life",
+        "homepage_subtitle": "Ethan",
+        "background_image": "https://www.panggi.com/images/featured/python.png",
+        "twitter_link": "https://www.twitter.com",
+        "facebook_link": "https://www.facebook.com",
+        "github_link": "https://www.github.com"
+    }
+}

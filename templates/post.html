@@ -1,0 +1,139 @@
+{% extends "bootstrap/base.html" %}
+{% block content %}
+{% include "header.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+<!-- Page Header -->
+<header class="masthead" style="background-image: url('{{post.img_url}}')">
+    <div class="overlay"></div>
+    <div class="container">
+        <div class="row">}
+            <div class="col-lg-8 col-md-10 mx-auto">
+                {% if deleted != "True" %}
+                <div class="post-heading">
+                    <h1>{{post.title}}</h1>
+                    <h2 class="subheading">{{post.subtitle}}</h2>
+                    <span class="meta">Posted by
+                <a href="#">{{post.author.name}}</a>
+                on {{post.date}}{% if current_user.is_authenticated and current_user.admin == True %}<br><br>
+                                        <a href="{{url_for('edit_post', post_id=post.id)}}">Edit
+                        Post</a>&emsp;<a href="{{url_for('delete_post', post_id=post.id)}}">Delete
+                        Post</a>{% endif %}</span>
+                    {% else %}
+                    <div class="post-heading">
+                        <h1>{{post["title"]}}</h1>
+                        <h2 class="subheading">{{post["subtitle"]}}</h2>
+                        <span class="meta">Posted by
+              <a href="#">{{post["author"]}}</a>
+              on {{post["date"]}}{% if current_user.is_authenticated and current_user.admin == True %}<br><br>
+                        <a href="{{ url_for('recover_post', post_id=post['post_id']) }}">Recover Post</a>{% endif %}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+</header>
+
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                {{ post.body|safe }}
+                {% set horizontal = False %}
+                {% if deleted != "True" and current_user.is_authenticated %}
+                <hr style="margin: 50px 0 50px 0;">
+                {{ ckeditor.load() }}
+                <span style="line-height: 4rem;">
+                {{ wtf.quick_form(form, button_map={"submit": "primary"}) }}
+                </span>
+                {% endif %}
+                {% if not current_user.is_authenticated and deleted != "True" and current_c == 1 %}
+                {% set horizontal = True %}
+                <hr style="margin: 50px 0 0 0;">
+                <p><a style="text-decoration: none;" href="{{ url_for('login') }}">Log in</a> to comment.</p>
+                <hr style="margin: 30px 0 20px 0;">
+                {% endif %}
+                {% if horizontal == False %}
+                <hr style="margin: 50px 0 20px 0;">
+                {% endif %}
+
+                <!--           Comments Area -->
+                {% if c_count != 0 %}
+                {% if deleted != "True" %}
+                {% for comment in comments %}
+                <ul class="commentList" style="margin-bottom: 20px; list-style-type: none;">
+                    <li>
+                        <div class="commenterImage">
+                            <img src="{{ comment.author.email | gravatar }}" style="border-radius: 100px;"/>
+                        </div>
+                        <div>
+
+                            <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;">{{ comment.author.name }} | {{ comment.date }} {% if current_user.admin == True %}<a
+                                    href="{{ url_for('delete_comment', comment_id=comment.id) }}"
+                                    style="font-size: 15px; margin-top: 10px; text-decoration: none;">| Delete Comment</a></span>{% endif %}
+                            <span style="margin-left: 20px;">{{ comment.comment.strip()|safe() }}</span>
+                        </div>
+                        <hr style="margin: 5px 0 0 0;">
+                    </li>
+                </ul>
+                {% endfor %}
+                {% else %}
+                <hr style="margin: 50px 0 20px 0;">
+                {% for comment in comments %}
+                <ul class="commentList" style="margin-bottom: 20px; list-style-type: none;">
+                    <li>
+                        <div class="commenterImage">
+                            <img src="{{ comment['author_email'] | gravatar }}" style="border-radius: 100px;"/>
+                        </div>
+                        <div>
+
+                            <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;">{{ comment["author"] }} | {{ comment["date"] }}
+                            <span style="margin-left: 20px;">{{ comment["comment"]|safe() }}</span>
+                        </div>
+                        <hr style="margin: 5px 0 0 0;">
+                    </li>
+                </ul>
+                {% endfor %}
+                {% endif %}
+                {% else %}
+                <p>No comments to display.</p>
+                <hr style="margin: 5px 0 20px 0;">
+                {% endif %}
+                <div class="clearfix">
+                    {% if deleted != "True" %}
+                    {% if c_count >= 3 %}
+                    <a class="btn btn-primary float-right"
+                       href="{{ url_for('show_post', c_page=current_c + 1, post_id=post.id) }}">NEXT
+                        PAGE
+                        &rarr;</a>
+                    {% endif %}
+                    {% if current_c > 1 %}
+                    <a class="btn btn-primary float-left"
+                       href="{{ url_for('show_post', c_page=current_c - 1, post_id=post.id) }}">&larr; PREVIOUS
+                        PAGE</a>
+                    {% endif %}
+                    {% else %}
+                    {% if c_count >= 3 %}
+                    <a class="btn btn-primary float-right"
+                       href="{{ url_for('show_post', c_page=current_c + 1, post_id=post['post_id'], deleted=True) }}">NEXT
+                        PAGE
+                        &rarr;</a>
+                    {% endif %}
+                    {% if current_c > 1 %}
+                    <a class="btn btn-primary float-left"
+                       href="{{ url_for('show_post', c_page=current_c - 1, post_id=post['post_id'], deleted=True) }}">&larr;
+                        PREVIOUS
+                        PAGE</a>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</article>
+
+<hr style="margin-top: 20px;">
+{% include "footer.html" %}
+
+{% endblock %}

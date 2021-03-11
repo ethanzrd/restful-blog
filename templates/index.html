@@ -1,0 +1,180 @@
+{% extends "bootstrap/base.html" %}
+{% block content %}
+{% include "header.html" %}
+
+<!-- Page Header -->
+<header class="masthead"
+        style="background-image: url({{ background_image }})">
+    <!--        style="background-image: url('https://images.unsplash.com/photo-1470092306007-055b6797ca72?ixlib=rb-1.2.1&auto=format&fit=crop&w=668&q=80')">-->
+    <div class="overlay"></div>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="site-heading">
+                    <h1>{{ title }}</h1>
+                    <span class="subheading">{{ subtitle }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Main Content -->
+{% set valid = True %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            {% if delete != True %}
+            {% if settings != True %}
+            {% if posts_count != 0 %}
+            {% for post in all_posts %}
+            <div class="post-preview">
+                <a href="{{ url_for('show_post', post_id=post.id) }}">
+                    <h2 class="post-title">
+                        {{post.title}}
+                    </h2>
+                    <h3 class="post-subtitle">
+                        {{post.subtitle}}
+                    </h3>
+                </a>
+                <p class="post-meta">Posted by
+                    <a href="#">{{post.author.name}}</a>
+                    on {{post.date}}
+            </div>
+            <hr>
+            {% endfor %}
+            {% else %}
+            {% set valid = False %}
+            {% for i in range(3): %}
+            <div class="post-preview">
+                <a href="#">
+                    <h2 class="post-title">
+                        Nothing to show here.
+                    </h2>
+                    <h3 class="post-subtitle">
+                        Looks like there's nothing here.
+                    </h3>
+                </a>
+                <p class="post-meta">
+                    <a href="#">You've reached a dead end, my friend.</a>
+                </p>
+            </div>
+            <hr>
+            {% endfor %}
+            {% endif %}
+            {% else %}
+            {% for error_name, error in errors.items() %}
+            <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ error_name }}</strong> | {{ error }}
+                </center>
+            </div>
+            {% endfor %}
+            {% for option in options %}
+            <div class="post-preview">
+                <a href="{{ url_for(options[option]['func']) }}">
+                    <h2 class="post-title">
+                        {{ option }}
+                    </h2>
+                    <h3 class="post-subtitle">
+                        {{ options[option]["desc"] }}
+                    </h3>
+                </a>
+                <p class="post-meta">
+                    <a href="#"></a>
+                </p>
+            </div>
+            <hr>
+            {% endfor %}
+            {% endif %}
+            {% else %}
+            {% if posts_count != 0 %}
+            {% for post in deleted_posts %}
+            <div class="post-preview">
+                <a href="{{ url_for('show_post', post_id=post['post_id'], deleted=True) }}">
+                    <h2 class="post-title">
+                        {{post["post_title"]}}
+                    </h2>
+                    <h3 class="post-subtitle">
+                        {{post["subtitle"]}}
+                    </h3>
+                </a>
+                <p class="post-meta">Posted by
+                    <a href="#">{{post["author"]}}</a>
+                    on {{post["date"]}}
+            </div>
+            <hr>
+            {% endfor %}
+            {% else %}
+            {% set valid = False %}
+            {% for i in range(3): %}
+            <div class="post-preview">
+                <a href="#">
+                    <h2 class="post-title">
+                        Nothing to show here.
+                    </h2>
+                    <h3 class="post-subtitle">
+                        Looks like there's nothing here.
+                    </h3>
+                </a>
+                <p class="post-meta">
+                    <a href="#">You've reached a dead end, my friend.</a>
+                </p>
+                <hr>
+                {% endfor %}
+                {% endif %}
+                {% endif %}
+
+
+                <!-- New Post -->
+                {% if settings != True %}
+                <div class="clearfix">
+                    {% if current_id == 1 %}
+                    {% if delete != True %}
+                    {% if current_user.is_authenticated and current_user.admin == True %}
+                    <div class="dropdown">
+                        <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
+                            PANEL
+                            <span class="caret"></span></button>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('add_post') }}"><h4>Add Post</h4></a></li>
+                            <li><a href="{{ url_for('deleted_posts') }}"><h4>Recover Deleted Posts</h4></a></li>
+                            <li><a href="{{ url_for('settings') }}"><h4>Settings</h4></a></li>
+                        </ul>
+                        {% endif %}
+                        {% endif %}
+                        {% endif %}
+                        {% if valid %}
+                        {% if posts_count >= 3 %}
+                        {% if deleted != True %}
+                        <a class="btn btn-primary float-right" href="{{ url_for('page', page_id=current_id + 1) }}">NEXT
+                            PAGE
+                            &rarr;</a>
+                        {% else %}
+                        <a class="btn btn-primary float-right"
+                           href="{{ url_for('page', page_id=current_id + 1, deleted=True) }}">NEXT
+                            PAGE
+                            &rarr;</a>
+                        {% endif %}
+                        {% endif %}
+                        {% endif %}
+                        {% if current_id > 1 %}
+                        {% if deleted != True %}
+                        <a class="btn btn-primary float-left" href="{{ url_for('page', page_id=current_id - 1) }}">&larr;
+                            PREVIOUS PAGE</a>
+                        {% else %}
+                        <a class="btn btn-primary float-left" href="{{ url_for('page', page_id=current_id - 1, deleted=True) }}">&larr;
+                            PREVIOUS PAGE</a>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% if delete != True %}
+        <hr>
+        {% endif %}
+        {% endif %}
+
+        {% include "footer.html" %}
+        {% endblock %}
