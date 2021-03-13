@@ -4,30 +4,49 @@
 {% block content %}
 {% include "header.html" %}
 
-  <!-- Page Header -->
-  <header class="masthead" style="background-image: url('https://images.unsplash.com/photo-1531592937781-344ad608fabf?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=80')">
+<!-- Page Header -->
+<header class="masthead"
+        style="background-image: url({{ background_image }})">
     <div class="overlay"></div>
     <div class="container">
-      <div class="row">
-        <div class="col-lg-8 col-md-10 mx-auto">
-          <div class="page-heading">
-            <h1>Register</h1>
-            <span class="subheading">Start Contributing to the Blog!</span>
-          </div>
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="page-heading">
+                    <h1>Register</h1>
+                    <span class="subheading">Register to our website and be able to do various things
+                        across our website!</span>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </header>
+</header>
 
-  <div class="container">
+<div class="container">
     <div class="row">
-      <div class="col-lg-8 col-md-10 mx-auto">
-       
-       {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+        <div class="col-lg-8 col-md-10 mx-auto" style="line-height: 2.5;">
+            {% with messages = get_flashed_messages() %}
+            {% for message in messages %}
+            {% if message != 'A confirmation email has been sent to you.' %}
+            <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% else %}
+            <div class="alert alert-success" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endwith %}
 
-      </div>
+            {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+
+        </div>
     </div>
-  </div>
+</div>
 
 <hr style="margin-top: 30px;">
 

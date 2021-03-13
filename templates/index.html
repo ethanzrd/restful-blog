@@ -20,11 +20,30 @@
 </header>
 
 <!-- Main Content -->
+{% set hr_valid = False %}
 {% set valid = True %}
 <div class="container">
     <div class="row">
         <div class="col-lg-8 col-md-10 mx-auto">
-            {% if delete != True %}
+            {% with messages = get_flashed_messages() %}
+            {% for message in messages %}
+            {% if message != 'This user does not exist.' and message != 'Could not find a user with the specified ID.' and message != 'No support email specified, unable to send message.' and message != 'Malformed page request for user profile.' and message != "Could not find a post with the specified ID."%}
+            <div class="alert alert-success" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% else %}
+            <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endwith %}
+            {% if mode != 'users' %}
+            {% if deleted != "True" %}
             {% if settings != True %}
             {% if posts_count != 0 %}
             {% for post in all_posts %}
@@ -38,7 +57,7 @@
                     </h3>
                 </a>
                 <p class="post-meta">Posted by
-                    <a href="#">{{post.author.name}}</a>
+                    <a href="{{ url_for('user_page', user_id=post.author.id) }}">{{post.author.name}}</a>
                     on {{post.date}}
             </div>
             <hr>
@@ -100,7 +119,7 @@
                     </h3>
                 </a>
                 <p class="post-meta">Posted by
-                    <a href="#">{{post["author"]}}</a>
+                    <a href="{{ url_for('user_page', user_id=post['author_id']) }}">{{post["author"]}}</a>
                     on {{post["date"]}}
             </div>
             <hr>
@@ -124,57 +143,104 @@
                 {% endfor %}
                 {% endif %}
                 {% endif %}
+                {% else %}
+                {% if posts_count != 0 %}
+                {% for user in results %}
+                <div class="post-preview">
+                    <a href="{{ url_for('user_page', user_id=user.id) }}">
+                        <h2 class="post-title">
+                            {{user.name}}
+                        </h2>
+                    </a>
+                    <span class="post-meta">
+                        Joined {{ user.join_date }}
+                    </span>
+                    <p class="post-meta" style="margin-top: 15px;">
+                        {% if user.admin == True %}Website Administrator{% endif %}
+                    </p>
+                </div>
+                <hr>
+                {% endfor %}
+                {% else %}
+                {% set valid = False %}
+                {% for i in range(3): %}
+                <div class="post-preview">
+                    <a href="#">
+                        <h2 class="post-title">
+                            Nothing to show here.
+                        </h2>
+                        <h3 class="post-subtitle">
+                            Looks like there's nothing here.
+                        </h3>
+                    </a>
+                    <p class="post-meta">
+                        <a href="#">You've reached a dead end, my friend.</a>
+                    </p>
+                    <hr>
+                    {% endfor %}
+                    {% endif %}
+                    {% endif %}
 
 
-                <!-- New Post -->
-                {% if settings != True %}
-                <div class="clearfix">
-                    {% if current_id == 1 %}
-                    {% if delete != True %}
-                    {% if current_user.is_authenticated and current_user.admin == True %}
-                    <div class="dropdown">
-                        <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
-                            PANEL
-                            <span class="caret"></span></button>
-                        <ul class="dropdown-menu">
-                            <li><a href="{{ url_for('add_post') }}"><h4>Add Post</h4></a></li>
-                            <li><a href="{{ url_for('deleted_posts') }}"><h4>Recover Deleted Posts</h4></a></li>
-                            <li><a href="{{ url_for('settings') }}"><h4>Settings</h4></a></li>
-                        </ul>
-                        {% endif %}
-                        {% endif %}
-                        {% endif %}
-                        {% if valid %}
-                        {% if posts_count >= 3 %}
-                        {% if deleted != True %}
-                        <a class="btn btn-primary float-right" href="{{ url_for('page', page_id=current_id + 1) }}">NEXT
-                            PAGE
-                            &rarr;</a>
-                        {% else %}
-                        <a class="btn btn-primary float-right"
-                           href="{{ url_for('page', page_id=current_id + 1, deleted=True) }}">NEXT
-                            PAGE
-                            &rarr;</a>
-                        {% endif %}
-                        {% endif %}
-                        {% endif %}
-                        {% if current_id > 1 %}
-                        {% if deleted != True %}
-                        <a class="btn btn-primary float-left" href="{{ url_for('page', page_id=current_id - 1) }}">&larr;
-                            PREVIOUS PAGE</a>
-                        {% else %}
-                        <a class="btn btn-primary float-left" href="{{ url_for('page', page_id=current_id - 1, deleted=True) }}">&larr;
-                            PREVIOUS PAGE</a>
-                        {% endif %}
-                        {% endif %}
+                    <!-- New Post -->
+                    {% if settings != True %}
+                    <div class="clearfix">
+                        {% if current_id == 1 %}
+                        {% if deleted != "True" %}
+                        {% if current_user.is_authenticated %}
+                        {% if search != True %}
+                        {% set hr_valid = True %}
+                        <div class="dropdown">
+                            <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
+                                PANEL
+                                <span class="caret"></span></button>
+                            <ul class="dropdown-menu">
+                                {% if current_user.admin == True %}
+                                <li><a href="{{ url_for('add_post') }}"><h4>Add Post</h4></a></li>
+                                <li><a href="{{ url_for('deleted_posts') }}"><h4>Recover Deleted Posts</h4></a></li>
+                                <li><a href="{{ url_for('settings') }}"><h4>Settings</h4></a></li>
+                                {% endif %}
+                                <li><a href="{{ url_for('user_page', user_id=current_user.id) }}"><h4>My Profile</h4>
+                                </li>
+                            </ul>
+                            {% endif %}
+                            {% endif %}
+                            {% endif %}
+                            {% endif %}
+                            {% if valid %}
+                            {% if posts_count >= 3 %}
+                            {% set hr_valid = True %}
+                            {% if deleted != "True" %}
+                            <a class="btn btn-primary float-right" href="{{ url_for('page', page_id=current_id + 1) }}">NEXT
+                                PAGE
+                                &rarr;</a>
+                            {% else %}
+                            <a class="btn btn-primary float-right"
+                               href="{{ url_for('page', page_id=current_id + 1, deleted=True) }}">NEXT
+                                PAGE
+                                &rarr;</a>
+                            {% endif %}
+                            {% endif %}
+                            {% endif %}
+                            {% if current_id > 1 %}
+                            {% set hr_valid = True %}
+                            {% if deleted != "True" %}
+                            <a class="btn btn-primary float-left" href="{{ url_for('page', page_id=current_id - 1) }}">&larr;
+                                PREVIOUS PAGE</a>
+                            {% else %}
+                            <a class="btn btn-primary float-left"
+                               href="{{ url_for('page', page_id=current_id - 1, deleted=True) }}">&larr;
+                                PREVIOUS PAGE</a>
+                            {% endif %}
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        {% if delete != True %}
-        <hr>
-        {% endif %}
-        {% endif %}
+            {% if hr_valid %}
+            <hr>
+            {% endif %}
+            {% endif %}
 
-        {% include "footer.html" %}
-        {% endblock %}
+            {% include "footer.html" %}
+            {% endblock %}

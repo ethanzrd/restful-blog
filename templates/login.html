@@ -6,7 +6,7 @@
 
 <!-- Page Header -->
 <header class="masthead"
-        style="background-image: url('https://images.unsplash.com/photo-1484100356142-db6ab6244067?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=80')">
+        style="background-image: url({{ background_image }})">
     <div class="overlay"></div>
     <div class="container">
         <div class="row">
@@ -22,12 +22,16 @@
 
 <div class="container">
     <div class="row">
-        <div class="col-lg-8 col-md-10 mx-auto content">
+        <div class="col-lg-8 col-md-10 mx-auto content" style="line-height: 2.5;">
             {% with messages = get_flashed_messages() %}
             {% for message in messages %}
             <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
                 <center>
+                    {% if message != 'unconfirmed' %}
                     <strong>{{ message }}</strong>
+                    {% else %}
+                    <strong>This user is not confirmed. <a href="{{ url_for('validate', email=email, name=user_name) }}">Click here</a> to confirm.</strong>
+                    {% endif %}
                 </center>
             </div>
             {% endfor %}

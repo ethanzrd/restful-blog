@@ -7,14 +7,14 @@
 <header class="masthead" style="background-image: url('{{post.img_url}}')">
     <div class="overlay"></div>
     <div class="container">
-        <div class="row">}
+        <div class="row">
             <div class="col-lg-8 col-md-10 mx-auto">
                 {% if deleted != "True" %}
                 <div class="post-heading">
                     <h1>{{post.title}}</h1>
                     <h2 class="subheading">{{post.subtitle}}</h2>
                     <span class="meta">Posted by
-                <a href="#">{{post.author.name}}</a>
+                <a href="{{ url_for('user_page', user_id=post.author.id) }}">{{post.author.name}}</a>
                 on {{post.date}}{% if current_user.is_authenticated and current_user.admin == True %}<br><br>
                                         <a href="{{url_for('edit_post', post_id=post.id)}}">Edit
                         Post</a>&emsp;<a href="{{url_for('delete_post', post_id=post.id)}}">Delete
@@ -24,7 +24,7 @@
                         <h1>{{post["title"]}}</h1>
                         <h2 class="subheading">{{post["subtitle"]}}</h2>
                         <span class="meta">Posted by
-              <a href="#">{{post["author"]}}</a>
+              <a href="{{ url_for('user_page', user_id=post['author_id']) }}">{{post["author"]}}</a>
               on {{post["date"]}}{% if current_user.is_authenticated and current_user.admin == True %}<br><br>
                         <a href="{{ url_for('recover_post', post_id=post['post_id']) }}">Recover Post</a>{% endif %}</span>
                     </div>
@@ -98,7 +98,7 @@
                 {% endif %}
                 {% else %}
                 <p>No comments to display.</p>
-                <hr style="margin: 5px 0 20px 0;">
+                <hr style="margin: 0 0 20px 0;">
                 {% endif %}
                 <div class="clearfix">
                     {% if deleted != "True" %}
