@@ -23,3 +23,5 @@ email-validator==1.1.2
 gunicorn==20.0.4
 psycopg2-binary==2.8.6
 html2text==2020.1.16
+flask_msearch==0.2.9
+flask_mail==0.9.1
