@@ -1,0 +1,165 @@
+{% extends "bootstrap/base.html" %}
+{% block content %}
+{% include "header.html" %}
+<header class="masthead"
+        style="background-image: url({{ background_image }})">
+    <!--        style="background-image: url('https://images.unsplash.com/photo-1470092306007-055b6797ca72?ixlib=rb-1.2.1&auto=format&fit=crop&w=668&q=80')">-->
+    <div class="overlay"></div>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="site-heading">
+                        <h1>{{ title }}</h1>
+                        <span class="subheading">{{ subtitle }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            {% with messages = get_flashed_messages() %}
+            {% for message in messages %}
+            {% if message != 'The user has been set as an administrator, a notification has been sent to the user.' %}
+            <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% else %}
+            <div class="alert alert-success" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endwith %}
+            {% if current_mode == 'posts' %}
+            {% if posts_count != 0 %}
+            {% set valid = True %}
+            {% for post in all_posts %}
+            <div class="post-preview">
+                <a href="{{ url_for('show_post', post_id=post.id) }}">
+                    <h2 class="post-title">
+                        {{post.title}}
+                    </h2>
+                    <h3 class="post-subtitle">
+                        {{post.subtitle}}
+                    </h3>
+                </a>
+                <p class="post-meta">Posted by
+                    <a href="#">{{post.author.name}}</a>
+                    on {{post.date}}
+            </div>
+            <hr>
+            {% endfor %}
+            {% else %}
+            {% set valid = False %}
+            {% for i in range(3): %}
+            <div class="post-preview">
+                <a href="#">
+                    <h2 class="post-title">
+                        Nothing to show here.
+                    </h2>
+                    <h3 class="post-subtitle">
+                        Looks like there's nothing here.
+                    </h3>
+                </a>
+                <p class="post-meta">
+                    <a href="#">You've reached a dead end, my friend.</a>
+                </p>
+            </div>
+            <hr>
+            {% endfor %}
+            {% endif %}
+            {% else %}
+            {% if posts_count != 0 %}
+            {% set valid = True %}
+            {% for comment in comments %}
+            <div class="post-preview">
+                <a href="{{ url_for('show_post', post_id=comment.post_id) }}">
+                    <h2 class="post-title">
+                        Commented on "{{comment.parent_post.title}}"
+                    </h2>
+                    <h3 class="post-subtitle">
+                        {{ comment.comment|safe() }}
+                    </h3>
+                </a>
+                <p class="post-meta">By
+                    <a href="#">{{comment.author.name}}</a>
+                    on {{comment.date}}
+            </div>
+            <hr>
+            {% endfor %}
+            {% else %}
+            {% set valid = False %}
+            {% for i in range(3): %}
+            <div class="post-preview">
+                <a href="#">
+                    <h2 class="post-title">
+                        Nothing to show here.
+                    </h2>
+                    <h3 class="post-subtitle">
+                        Looks like there's nothing here.
+                    </h3>
+                </a>
+                <p class="post-meta">
+                    <a href="#">You've reached a dead end, my friend.</a>
+                </p>
+            </div>
+            <hr>
+            {% endfor %}
+            {% endif %}
+            {% endif %}
+            <!-- Pager -->
+            <div class="clearfix">
+                {% if current_id == 1 %}
+                <div class="dropdown">
+                    <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
+                        USER PANEL
+                        <span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        {% if current_mode == 'posts' %}
+                        <li><a href="{{ url_for('user_page', user_id=user.id, current_mode='comments') }}"><h4>View
+                            Comments</h4></a></li>
+                        {% else %}
+                        <li><a href="{{ url_for('user_page', user_id=user.id, current_mode='posts') }}"><h4>View
+                            Posts</h4></a></li>
+                        {% endif %}
+                        {% if current_user.is_authenticated and current_user.admin == True %}
+                        <li><a href="{{ url_for('delete_user', user_id=user.id) }}"><h4>Delete User</h4></a>
+                        </li>
+                        {% endif %}
+                        {% if current_user.is_authenticated and current_user.admin == True and user.admin == False or
+                        admin_count < 1 and user.admin == False and current_user.is_authenticated and current_user == user %}
+                        <li><a href="{{ url_for('make_admin', user_id=user.id) }}"><h4>Make Administrator</h4></a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    {% if valid %}
+                    {% if posts_count >= 3 %}
+                    <a class="btn btn-primary float-right"
+                       href="{{ url_for('page', page_id=current_id + 1, current_mode=current_mode, user_id=user.id) }}">NEXT
+                        PAGE
+                        &rarr;</a>
+                    {% endif %}
+                    {% endif %}
+                    {% endif %}
+                    {% if current_id > 1 %}
+                    <a class="btn btn-primary float-left"
+                       href="{{ url_for('page', page_id=current_id - 1, current_mode=current_mode, user_id=user.id) }}">&larr;
+                        PREVIOUS PAGE</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <hr>
+</div>
+
+{% include "footer.html" %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% import "bootstrap/wtf.html" as wtf %}
+{% extends "bootstrap/base.html" %}
+{% block content %}
+{% include "header.html" %}
+<!-- Page Header -->
+<header class="masthead" style="background-image: url({{ background_image }})">
+    <div class="overlay"></div>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="page-heading">
+                    <h1>{% if authorization != True %}Account Deletion Report{% else %}Admin Account Deletion Attempt{% endif %}</h1>
+                    <span class="subheading">{% if authorization != True %}Report For: {{ user_name }}{% else %}You are attempting to delete a website administrator account, in order to delete the account, you must provide the admin deletion authentication password.{% endif %}<br><br>Please note that you are required to present a reasonable explanation to the termination, you may not delete and/or take action against a user without a corresponding reason.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="container" style="margin-bottom: 20px;">
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto" style="line-height: 2.5;">
+            {% with messages = get_flashed_messages() %}
+            {% for message in messages %}
+            <div class="alert alert-danger" role="alert" style="margin-bottom: 20px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% endfor %}
+            {% endwith %}
+            {% if authorization != True %}
+            <form action="{{ url_for('delete_user', user_id=user_id, authorized=True) }}" method="post" novalidate>
+                {% else %}
+                <form action="{{ url_for('authorization', user_id=user_id) }}" method="post" novalidate>
+                    {% endif %}
+                    {{ ckeditor.load() }}
+                    {{ wtf.quick_form(form=form, button_map={"submit": "primary"}) }}
+                </form>
+        </div>
+    </div>
+</div>
+<hr>
+
+{% include "footer.html" %}
+{% endblock %}
