@@ -4,13 +4,14 @@
 # TODO - Verify contact support email before usage using confirmation links
 # TODO - Check if HTTP requests match with configuration functions
 # TODO - Create special account
+# TODO - Set comment names to profile links
 
 # ------------------ END BLOCK ------------------
 
 
 # ------------------ IMPORTS BLOCK ------------------
 
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, abort
 from flask_msearch import Search
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -22,6 +23,7 @@ from flask_ckeditor import CKEditor, CKEditorField
 import datetime as dt
 from flask_mail import Mail, Message
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import UnmappedInstanceError
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_gravatar import Gravatar
@@ -47,6 +49,7 @@ app.config["MAIL_PORT"] = 587
 app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
 app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
 app.config['MAIL_USE_TLS'] = True
+EMAIL = os.environ.get('EMAIL')
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager()
@@ -72,6 +75,7 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(100))
     name = db.Column(db.String(1000))
     admin = db.Column(db.Boolean(), default=False)
+    author = db.Column(db.Boolean(), default=False)
     posts = relationship("BlogPost", back_populates="author")
     comments = relationship("Comment", back_populates="author")
 
@@ -147,9 +151,21 @@ def get_posts():  # GET ALL EXISTING POSTS
         return []
 
 
-def clean_deleted():
+def clean_posts():
     [db.session.delete(post) for post in DeletedPost.query.all()
      if User.query.filter_by(email=post.json_column["author_email"]).first() is None]
+    for post in BlogPost.query.all():
+        try:
+            user = User.query.filter_by(email=post.author.email).first()
+            if user is None:
+                db.session.delete(post)
+        except AttributeError:
+            db.session.delete(post)
+    for comment in Comment.query.all():
+        try:
+            comment = comment.author.email
+        except (AttributeError, TypeError):
+            db.session.delete(comment)
 
 
 def generate_date():  # GET THE CURRENT DATE IN A STRING FORMAT
@@ -173,7 +189,7 @@ def get_user_comments(user_id):  # GET ALL COMMENTS ASSIGNED TO USER BY USER ID
 
 
 def delete_notification(email, name, action_user, action_title, action_reason):
-    msg = Message('Account Deleted', sender=os.environ.get('EMAIL'), recipients=[email])
+    msg = Message('Account Deleted', sender=EMAIL, recipients=[email])
     msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account was deleted by {action_user} due to "{action_title}".\n\n' \
@@ -182,18 +198,35 @@ def delete_notification(email, name, action_user, action_title, action_reason):
     mail.send(msg)
 
 
-def admin_notification(email, name, action_user, action_title, action_reason):
+def set_notification(category, email, name, action_user, action_reason):
     try:
         support_email = get_data()["contact-configuration"]["support_email"]
     except KeyError:
-        msg = Message('Account set as administrator', sender=os.environ.get('EMAIL'), recipients=[email])
+        msg = Message(f'Account set as {category}', sender=EMAIL, recipients=[email])
     else:
-        msg = Message('Account set as administrator', sender=os.environ.get('EMAIL'), recipients=[email, support_email])
+        msg = Message(f'Account set as {category}', sender=EMAIL, recipients=[email,
+                                                                                                       support_email])
     msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
-               f'Your account was set as an administrator by {action_user} due to "{action_title}".\n\n' \
-               f'Extensive reasoning by actioning staff member:\n\n{html2text.html2text(action_reason)}\n\n' \
+               f'Your account was set as an {category} by {action_user}.\n\n' \
+               f'Reasoning by actioning staff member:\n\n{html2text.html2text(action_reason)}\n\n' \
                f'Congratulations, if you have any inquires, contact us by replying to this email or via our website.'
+    mail.send(msg)
+
+
+def remove_notification(category, email, name, action_user, action_reason):
+    try:
+        support_email = get_data()["contact-configuration"]["support_email"]
+    except KeyError:
+        msg = Message(f'Account removed as {category}', sender=EMAIL, recipients=[email])
+    else:
+        msg = Message(f'Account removed as {category}', sender=EMAIL, recipients=[email,
+                                                                                                           support_email])
+    msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+               f" events that occurred in regards to your account.\n\n" \
+               f'Your account was removed as an {category} by {action_user}.\n\n' \
+               f'Reasoning by actioning staff member:\n\n{html2text.html2text(action_reason)}\n\n' \
+               f'If you believe that a mistake was made, contact us by replying to this email or via our website.'
     mail.send(msg)
 
 
@@ -202,7 +235,7 @@ def contact_notification(email, name, action_reason):
         support_email = get_data()["contact_configuration"]["support_email"]
     except KeyError:
         return False
-    msg = Message(f"{get_name()} - Contact Inquiry", sender=os.environ.get('EMAIL'), recipients=[support_email])
+    msg = Message(f"{get_name()} - Contact Inquiry", sender=EMAIL, recipients=[support_email])
     msg.body = f"This is an automatic email from {get_name()} to notify you of a" \
                f" user inquiry.\n\n" \
                f'Name: {name}\n\n' \
@@ -213,8 +246,25 @@ def contact_notification(email, name, action_reason):
     mail.send(msg)
 
 
+def redirect_http():
+    if current_user.is_authenticated is False:
+        return abort(403)
+    if current_user.admin is False and current_user.author is False:
+        return abort(403)
+    return None
+
+
+def admin_redirect():
+    if current_user.is_authenticated is False or current_user.admin is False:
+        return abort(403)
+
+
+def get_admin_count():  # GET THE AMOUNT OF ADMINISTRATORS
+    return len([user for user in User.query.all() if user.admin is True])
+
+
 def get_deleted():
-    return [post.json_column for post in DeletedPost.query.all()]
+    return [(post.id, post.json_column) for post in DeletedPost.query.all()]
 
 
 def get_data(homepage=False):  # GET CONFIG DATA
@@ -235,7 +285,7 @@ def get_data(homepage=False):  # GET CONFIG DATA
                             "page_subheading": "Contact us, and we'll respond as soon as we can.",
                             "page_description": "With the current workload, we are able to respond within 24 hours.",
                             "background_image": "https://www.panggi.com/images/featured/python.png",
-                            "support_email": os.environ.get('EMAIL')
+                            "support_email": EMAIL
                         },
                         "about_configuration": {
                             "page_heading": "About us",
@@ -318,8 +368,22 @@ def get_background(configuration="none"):
 @app.errorhandler(401)
 def unauthorized(e):
     return render_template('http-error.html', background_image=get_background('website_configuration'),
-                           error="401 - Unauthorized", error_description="You're unauthorized to access this page.",
+                           error="401 - Unauthorized", error_description="You're unauthorized to perform this action.",
                            name=get_name()), 401
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           error="403 - Forbidden", error_description="You're unauthorized to perform this action.",
+                           name=get_name()), 403
+
+
+@app.errorhandler(404)
+def unauthorized(e):
+    return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           error="404 - Page Not Found", error_description="Page not found.",
+                           name=get_name()), 404
 
 
 # ------------------ END ------------------
@@ -367,9 +431,9 @@ class WebConfigForm(FlaskForm):
 # ------ REGISTER FORM ------
 
 class RegisterForm(FlaskForm):
+    name = StringField("Name", validators=[DataRequired()])
     email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("Password", validators=[DataRequired()])
-    name = StringField("Name", validators=[DataRequired()])
     submit = SubmitField("Sign up", render_kw={"style": "margin-top: 20px;"})
 
 
@@ -468,16 +532,15 @@ class AboutConfigForm(FlaskForm):
 
 # ------ MAKE ADMINISTRATOR FORM ------
 
-class MakeAdminForm(FlaskForm):
-    title = StringField("Action Title", validators=[DataRequired()])
+class MakeUserForm(FlaskForm):
     reason = CKEditorField("Reason for Action", validators=[DataRequired()])
-    submit = SubmitField("Set user as administrator", render_kw={"style": "margin-top: 20px;"})
+    submit = SubmitField("Proceed", render_kw={"style": "margin-top: 20px;"})
 
 
 # ------ END ------
 
 
-# ------ MAKE ADMINISTRATOR FORM ------
+# ------ AUTHENTICATION CONFIG FORM ------
 
 class AuthConfig(FlaskForm):
     old_password = PasswordField("Old Authentication Password", validators=[DataRequired()])
@@ -590,6 +653,12 @@ def about():
 
 @app.route("/contact", methods=['GET', 'POST'])
 def contact():
+    valid = True
+    try:
+        support_email = get_data()["contact_configuration"]["support_email"]
+    except KeyError:
+        flash("Warning | No support email specified, messages will not be received.")
+        valid = False
     try:
         contact_config = get_data()['contact_configuration']
     except KeyError:
@@ -600,16 +669,24 @@ def contact():
         heading = contact_config['page_heading']
         subheading = contact_config['page_subheading']
         description = contact_config['page_description']
-    form = ContactForm()
-    if form.validate_on_submit():
-        notification = contact_notification(form.email.data, form.name.data, form.message.data)
-        if notification is False:
-            flash("No support email specified, unable to send message.")
-            return redirect(url_for('home'))
+    if valid:
+        if current_user.is_authenticated and current_user.confirmed_email:
+            form = ContactForm(name=current_user.name, email=current_user.email)
         else:
-            flash("Message successfully sent.")
-            return redirect(url_for('home'))
-    return render_template("contact.html", form=form, heading=heading, subheading=subheading, description=description,
+            form = ContactForm()
+        if form.validate_on_submit():
+            notification = contact_notification(form.email.data, form.name.data, form.message.data)
+            if notification is False:
+                flash("No support email specified, unable to send your message.")
+                return redirect(url_for('home'))
+            else:
+                flash("Message successfully sent.")
+                return redirect(url_for('home'))
+        return render_template("contact.html", form=form, heading=heading, subheading=subheading,
+                               description=description,
+                               background_image=get_background('contact_configuration'), name=get_name())
+    return render_template("contact.html", heading=heading, subheading=subheading,
+                           description=description,
                            background_image=get_background('contact_configuration'), name=get_name())
 
 
@@ -650,11 +727,11 @@ def show_post(post_id):
         post_comments = BlogPost.query.get(post_id).comments
     else:
         try:
-            requested_post = DeletedPost.query.get(post_id).json_column
+            requested_post = (DeletedPost.query.get(post_id).id, DeletedPost.query.get(post_id).json_column)
         except AttributeError:
             flash("Could not find a post with the specified ID.")
             return redirect(url_for('deleted_posts'))
-        post_comments = requested_post["comments"]
+        post_comments = requested_post[1]["comments"]
     if comment_page is not None:
         current_c = comment_page
         if comment_page == 1:
@@ -669,46 +746,61 @@ def show_post(post_id):
         if deleted is None:
             comment_items = requested_post.comments[:3]
         else:
-            comment_items = requested_post["comments"][:3]
+            comment_items = requested_post[1]["comments"][:3]
 
     count = 0
     for _ in comment_items:
         count += 1
 
     if form.validate_on_submit():
-        now = dt.datetime.now()
-        current_month = [month for month in months if now.month == month[0]][0][1]
-        date = f'{current_month} {now.day}, {now.year}'
-        new_comment = Comment(author=current_user,
-                              parent_post=requested_post,
-                              comment=form.comment.data,
-                              date=date)
-        db.session.add(new_comment)
-        db.session.commit()
-        return redirect(url_for('show_post', post_id=post_id))
+        if current_user.is_authenticated:
+            now = dt.datetime.now()
+            current_month = [month for month in months if now.month == month[0]][0][1]
+            date = f'{current_month} {now.day}, {now.year}'
+            new_comment = Comment(author=current_user,
+                                  parent_post=requested_post,
+                                  comment=form.comment.data,
+                                  date=date)
+            db.session.add(new_comment)
+            db.session.commit()
+            return redirect(url_for('show_post', post_id=post_id))
+        else:
+            flash("User is not logged in.")
+            return redirect(url_for('show_post', post_id=post_id))
     return render_template("post.html", post=requested_post, deleted=str(deleted),
                            name=get_name(), form=form, comments=comment_items, current_c=int(current_c), c_count=count)
 
 
 @app.route('/edit/<int:post_id>', methods=['GET', 'POST'])
+@login_required
 def edit_post(post_id):
+    redirect_http()
     post = BlogPost.query.get(post_id)
-    form = CreatePostForm(title=post.title,
-                          subtitle=post.subtitle,
-                          img_url=post.img_url,
-                          body=post.body)
-    if form.validate_on_submit():
-        post.title = form.title.data
-        post.subtitle = form.subtitle.data
-        post.img_url = form.img_url.data
-        post.body = form.body.data
-        db.session.commit()
-        return redirect(url_for('show_post', post_id=post_id))
-    return render_template('make-post.html', edit=True, post=post, form=form, name=get_name())
+    if post is not None:
+        if post.author.email == current_user.email:
+            form = CreatePostForm(title=post.title,
+                                  subtitle=post.subtitle,
+                                  img_url=post.img_url,
+                                  body=post.body)
+            if form.validate_on_submit():
+                post.title = form.title.data
+                post.subtitle = form.subtitle.data
+                post.img_url = form.img_url.data
+                post.body = form.body.data
+                db.session.commit()
+                return redirect(url_for('show_post', post_id=post_id))
+            return render_template('make-post.html', edit=True, post=post, form=form, name=get_name())
+        else:
+            return abort(403)
+    else:
+        flash("Could not find a post with the specified ID.")
+        return redirect(url_for('home'))
 
 
 @app.route('/add', methods=['GET', 'POST'])
+@login_required
 def add_post():
+    redirect_http()
     form = CreatePostForm()
     if form.validate_on_submit():
         date = generate_date()
@@ -719,14 +811,16 @@ def add_post():
                             body=form.body.data,
                             date=date)
         db.session.add(new_post)
-        db.session.commit()  # TODO - account for integrity error
+        db.session.commit()
         return redirect(url_for('home'))
     return render_template('make-post.html', form=form, name=get_name(),
                            background_image=get_background('website_configuration'))
 
 
 @app.route('/deleted')
+@login_required
 def deleted_posts():
+    redirect_http()
     posts = get_deleted()[:3]
     return render_template('index.html', deleted_posts=posts,
                            deleted="True",
@@ -736,42 +830,58 @@ def deleted_posts():
 
 
 @app.route('/delete/<int:post_id>')
+@login_required
 def delete_post(post_id):
+    redirect_http()
     post = BlogPost.query.get(post_id)
-    try:
-        lst = Comment.query.filter_by(post_id=post.id).all()
-    except AttributeError:
+    if post is not None:
+        if current_user.is_authenticated and current_user.author is True and post.author.email == current_user.email or current_user.is_authenticated and current_user.admin is True:
+            try:
+                lst = Comment.query.filter_by(post_id=post.id).all()
+            except AttributeError:
+                flash("Could not find a post with the specified ID.")
+                return redirect(url_for('deleted_posts'))
+            new_post = {
+                "post_title": post.title,
+                "author_id": post.author.id,
+                "author_email": post.author.email,
+                "author": post.author.name,
+                "subtitle": post.subtitle,
+                "img_url": post.img_url,
+                "body": post.body,
+                "date": post.date,
+                "comments": [{"author_id": comment.author_id, "author": comment.author.name,
+                              "author_email": comment.author.email, "post_id": comment.post_id, "comment": comment.comment,
+                              "date": comment.date} for comment in lst]
+            }
+            new_deleted = DeletedPost(json_column=new_post)
+            db.session.add(new_deleted)
+            [db.session.delete(comment) for comment in lst]
+            db.session.delete(post)
+            db.session.commit()
+            return redirect(url_for('home'))
+        else:
+            return abort(403)
+    else:
         flash("Could not find a post with the specified ID.")
         return redirect(url_for('deleted_posts'))
-    new_post = {
-        "post_title": post.title,
-        "author_id": post.author.id,
-        "author_email": post.author.email,
-        "author": post.author.name,
-        "subtitle": post.subtitle,
-        "post_id": post_id,
-        "img_url": post.img_url,
-        "body": post.body,
-        "date": post.date,
-        "comments": [{"author_id": comment.author_id, "author": comment.author.name,
-                      "author_email": comment.author.email, "post_id": comment.post_id, "comment": comment.comment,
-                      "date": comment.date} for comment in lst]
-    }
-    new_deleted = DeletedPost(json_column=new_post)
-    db.session.add(new_deleted)
-    [db.session.delete(comment) for comment in lst]
-    db.session.delete(post)
-    db.session.commit()
-    return redirect(url_for('home'))
 
 
 @app.route('/recover/<int:post_id>')
+@login_required
 def recover_post(post_id):
+    redirect_http()
     try:
-        actual_post = DeletedPost.query.get(post_id)
-        post = DeletedPost.query.get(post_id).json_column
+        actual = DeletedPost.query.get(post_id)
+        post = actual.json_column
     except AttributeError:
         flash("Could not find a post with the specified ID.")
+        return redirect(url_for('deleted_posts'))
+    try:
+        if current_user.email != post["author_email"] or current_user.author is False and current_user.admin is False:
+            return abort(403)
+    except AttributeError:
+        flash("The author could not be found.")
         return redirect(url_for('deleted_posts'))
     comments = post["comments"]
     new_post = BlogPost(author=User.query.filter_by(email=post["author_email"]).first(),
@@ -782,24 +892,51 @@ def recover_post(post_id):
                         img_url=post["img_url"],
                         )
     db.session.add(new_post)
-    [db.session.add(Comment(author=User.query.filter_by(name=comment["author_email"]).first(),
+    [db.session.add(Comment(author=User.query.filter_by(email=comment["author_email"]).first(),
                             post_id=new_post.id,
                             parent_post=new_post,
                             comment=comment["comment"], date=comment["date"])) for comment in comments]
-    db.session.delete(actual_post)
+    db.session.delete(actual)
     db.session.commit()
     return redirect(url_for('home'))
 
 
+@app.route('/perm-delete/<int:post_id>')
+def perm_delete(post_id):
+    admin_redirect()
+    try:
+        actual_post = DeletedPost.query.get(post_id)
+        post = actual_post.json_column
+    except AttributeError:
+        flash("Could not find a post with the specified ID.")
+        return redirect(url_for('deleted_posts'))
+    try:
+        db.session.delete(actual_post)
+    except UnmappedInstanceError:
+        flash("Could not find a post with the specified ID.")
+        return redirect(url_for('deleted_posts'))
+    db.session.commit()
+    return redirect(url_for('deleted_posts'))
+
+
 # ------ COMMENT SYSTEM ------
 
+
 @app.route('/delete-comment/<int:comment_id>')
+@login_required
 def delete_comment(comment_id):
     comment = Comment.query.get(comment_id)
-    current_post = comment.post_id
-    db.session.delete(comment)
-    db.session.commit()
-    return redirect(url_for('show_post', post_id=current_post))
+    if comment is not None:
+        if comment.parent_post.author.email == current_user.email or current_user.email == comment.author.email:
+            current_post = comment.post_id
+            db.session.delete(comment)
+            db.session.commit()
+            return redirect(url_for('show_post', post_id=current_post))
+        else:
+            return abort(403)
+    else:
+        flash("Could not find a comment with the specified ID.")
+        return redirect(url_for('home'))
 
 
 # ------ END ------
@@ -811,7 +948,9 @@ def delete_comment(comment_id):
 # ------------------ SETTINGS ------------------
 
 @app.route('/settings')
+@login_required
 def settings():
+    admin_redirect()
     options = {"Website Configuration": {"desc": "Configure your website.",
                                          "func": "web_configuration"},
                'Contact Me Configuration': {"desc": 'Configure the "Contact Me" page.',
@@ -829,7 +968,9 @@ def settings():
 
 
 @app.route('/web-configure', methods=['GET', 'POST'])
+@login_required
 def web_configuration():
+    admin_redirect()
     data = get_data()
     try:
         config_data = data['website_configuration']
@@ -863,7 +1004,9 @@ def web_configuration():
 
 
 @app.route('/contact-configure', methods=['GET', 'POST'])
+@login_required
 def contact_configuration():
+    admin_redirect()
     data = get_data()
     try:
         config_data = data['contact_configuration']
@@ -893,7 +1036,9 @@ def contact_configuration():
 
 
 @app.route('/about-configure', methods=['GET', 'POST'])
+@login_required
 def about_configuration():
+    admin_redirect()
     data = get_data()
     try:
         config_data = data['about_configuration']
@@ -920,7 +1065,9 @@ def about_configuration():
 
 
 @app.route('/auth-configure', methods=['GET', 'POST'])
+@login_required
 def authentication_configuration():
+    admin_redirect()
     form = AuthConfig()
     data = get_data()
     try:
@@ -960,25 +1107,111 @@ def authentication_configuration():
 # ------------------ USER BLOCK ------------------
 
 @app.route('/admin/<int:user_id>', methods=['GET', 'POST'])
+@login_required
 def make_admin(user_id):
+    if get_admin_count() > 0:
+        admin_redirect()
     user = User.query.get(user_id)
     authorized = request.args.get('authorized')
-    form = MakeAdminForm()
+    form = MakeUserForm()
     if user is not None:
         if user.admin is not True:
             if authorized != "True":
                 return redirect(url_for('admin_auth', user_id=user_id))
             if form.validate_on_submit():
-                admin_notification(user.email, user.name, current_user.name, form.title.data, form.reason.data)
+                set_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
+                user.author = False
                 user.admin = True
                 db.session.commit()
                 flash("The user has been set as an administrator, a notification has been sent to the user.")
                 return redirect(url_for('user_page', user_id=user_id))
             return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
-                                   name=get_name(), background_image=get_background('website_configuration'))
+                                   name=get_name(), background_image=get_background('website_configuration'),
+                                   category='admin')
         else:
             flash("This user is already an administrator.")
             return redirect(url_for('user_page', user_id=user_id))
+    else:
+        flash("Could not find a user with the specified ID.")
+        return redirect(url_for('home'))
+
+
+@app.route('/admin-remove/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def remove_admin(user_id):
+    admin_redirect()
+    user = User.query.get(user_id)
+    authorized = request.args.get('authorized')
+    form = MakeUserForm()
+    if user is not None:
+        if user.admin is True:
+            if authorized != "True":
+                return redirect(url_for('admin_auth', user_id=user_id, remove=True))
+            if form.validate_on_submit():
+                remove_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
+                user.admin = False
+                db.session.commit()
+                flash("The user has been removed as an administrator, a notification has been sent to the user.")
+                return redirect(url_for('user_page', user_id=user_id))
+            return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
+                                   name=get_name(), background_image=get_background('website_configuration'),
+                                   category='admin', remove="True")
+        else:
+            flash("This user is not an administrator.")
+            return redirect(url_for('user_page', user_id=user_id))
+    else:
+        flash("Could not find a user with the specified ID.")
+        return redirect(url_for('home'))
+
+
+@app.route('/author/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def make_author(user_id):
+    admin_redirect()
+    user = User.query.get(user_id)
+    form = MakeUserForm()
+    if user is not None:
+        if user.author is not True:
+            if form.validate_on_submit():
+                set_notification('author', user.email, user.name, current_user.name, form.reason.data)
+                user.author = True
+                db.session.commit()
+                flash("This user has been set as an author, a notification has been sent to the user.")
+                return redirect(url_for('user_page', user_id=user_id))
+            return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
+                                   name=get_name(), background_image=get_background('website_configuration'),
+                                   category='author')
+        else:
+            flash("This user is already set as an author.")
+            return redirect(url_for('user_page', user_id=user_id))
+    else:
+        flash("Could not find a user with the specified ID.")
+        return redirect(url_for('home'))
+
+
+@app.route('/author-remove/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def remove_author(user_id):
+    admin_redirect()
+    user = User.query.get(user_id)
+    form = MakeUserForm()
+    if user is not None:
+        if user.author is True:
+            if form.validate_on_submit():
+                remove_notification('author', user.email, user.name, current_user.name, form.reason.data)
+                user.author = False
+                db.session.commit()
+                flash("This user has been removed as an author, a notification has been sent to the user.")
+                return redirect(url_for('user_page', user_id=user_id))
+            return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
+                                   name=get_name(), background_image=get_background('website_configuration'),
+                                   category='author', remove="True")
+        else:
+            flash("This user is not an author.")
+            return redirect(url_for('user_page', user_id=user_id))
+    else:
+        flash("Could not find a user with the specified ID.")
+        return redirect(url_for('home'))
 
 
 @app.route('/user/<int:user_id>')
@@ -987,7 +1220,7 @@ def user_page(user_id):
     posts = get_user_posts(user_id)
     comments = get_user_comments(user_id)
     current_mode = request.args.get('current_mode')
-    admin_count = len([user for user in User.query.all() if user.admin is True])
+    admin_count = get_admin_count()
     if user is not None:
         if current_mode == 'comments':
             return render_template("user.html", comments=comments[:3], posts_count=len(comments[:3]), current_id=1,
@@ -1009,6 +1242,7 @@ def user_page(user_id):
 @app.route('/delete-user/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def delete_user(user_id):
+    admin_redirect()
     user = User.query.get(user_id)
     authorized = request.args.get('authorized')
     if user is not None:
@@ -1016,13 +1250,14 @@ def delete_user(user_id):
             return redirect(url_for('authorization', user_id=user_id))
         form = DeleteForm()
         if form.validate_on_submit():
+            email = user.email
             delete_notification(email=user.email, name=user.name, action_user=current_user.name,
                                 action_title=form.title.data, action_reason=form.reason.data)
             if current_user == user:
                 logout_user()
             flash("The user has been deleted, a notification has been sent to the user.")
             db.session.delete(user)
-            clean_deleted()
+            clean_posts()
             db.session.commit()
             return redirect(url_for('home'))
         return render_template('delete.html', form=form, user_id=user_id, name=get_name(), user_name=user.name,
@@ -1035,6 +1270,7 @@ def delete_user(user_id):
 @app.route('/auth', methods=['GET', 'POST'])
 @login_required
 def authorization():
+    admin_redirect()
     form = AuthForm()
     user_id = request.args.get('user_id')
     if User.query.get(user_id) is None:
@@ -1058,7 +1294,10 @@ def authorization():
 @app.route('/admin-auth', methods=['GET', 'POST'])
 @login_required
 def admin_auth():
+    if get_admin_count() > 0:
+        admin_redirect()
     form = AuthForm()
+    remove = request.args.get('remove')
     user_id = request.args.get('user_id')
     if User.query.get(user_id) is None:
         flash("Could not find a user with the specified ID.")
@@ -1075,11 +1314,15 @@ def admin_auth():
                   " Cannot set user as an administrator in this time.")
             return redirect(url_for('home'))
         if check_password_hash(secret_password, form.code.data):
-            return redirect(url_for('make_admin', user_id=user_id, authorized=True))
+            if remove != 'True':
+                return redirect(url_for('make_admin', user_id=user_id, authorized=True))
+            else:
+                return redirect(url_for('remove_admin', user_id=user_id, authorized=True))
         else:
             flash("Incorrect authorization code.")
     return render_template('admin-form.html', form=form, authorization=True, user_id=user_id, name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), category='admin',
+                           remove=remove)
 
 
 # ------------------ END BLOCK ------------------
@@ -1089,7 +1332,7 @@ def admin_auth():
 
 def verify_user(email, name):
     token = serializer.dumps(email, salt='email-verify')
-    msg = Message('Confirmation Email', sender=os.environ.get('EMAIL'), recipients=[email])
+    msg = Message('Confirmation Email', sender=EMAIL, recipients=[email])
     link = url_for('verify_email', token=token, email=email, _external=True)
     msg.body = f"Hello {name}, please go to this link to finalize your registration.\n\n" \
                f"{link}\n\nNote: If you're unfamiliar with the source of this email, simply ignore it."
@@ -1115,13 +1358,7 @@ def register():
                             password=password, name=form.name.data)
             db.session.add(new_user)
             db.session.commit()
-            token = serializer.dumps(form.email.data, salt='email-verify')
-            msg = Message('Confirm Email', sender=os.environ.get('EMAIL'), recipients=[form.email.data])
-            link = url_for('verify_email', token=token, email=form.email.data, _external=True)
-            msg.body = f"Hello {form.name.data}, please go to this link to finalize your registration.\n\n" \
-                       f"{link}\n\nNote: If you're unfamiliar with the source of this email, simply ignore it."
-            mail.send(msg)
-            flash("A confirmation email has been sent to you.")
+            verify_user(form.email.data, form.name.data)
             return redirect(url_for('home'))
         else:
             if user.confirmed_email is True:
@@ -1216,4 +1453,4 @@ def logout():
 # ------------------ SERVER CONFIG ------------------
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)

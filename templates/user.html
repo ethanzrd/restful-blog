@@ -9,8 +9,8 @@
         <div class="row">
             <div class="col-lg-8 col-md-10 mx-auto">
                 <div class="site-heading">
-                        <h1>{{ title }}</h1>
-                        <span class="subheading">{{ subtitle }}</span>
+                    <h1>{{ title }}</h1>
+                    <span class="subheading">{{ subtitle }}</span>
                 </div>
             </div>
         </div>
@@ -23,7 +23,11 @@
         <div class="col-lg-8 col-md-10 mx-auto">
             {% with messages = get_flashed_messages() %}
             {% for message in messages %}
-            {% if message != 'The user has been set as an administrator, a notification has been sent to the user.' %}
+            {% if message != 'The user has been set as an administrator, a notification has been sent to the user.'
+            and message != 'The user has been removed as an administrator, a notification has been sent to the user.'
+            and
+            message != 'This user has been set as an author, a notification has been sent to the user.' and
+            message != 'This user has been removed as an author, a notification has been sent to the user.' %}
             <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
                 <center>
                     <strong>{{ message }}</strong>
@@ -133,10 +137,23 @@
                         {% if current_user.is_authenticated and current_user.admin == True %}
                         <li><a href="{{ url_for('delete_user', user_id=user.id) }}"><h4>Delete User</h4></a>
                         </li>
+                        {% if user.admin == True %}
+                        <li><a href="{{ url_for('remove_admin', user_id=user.id) }}"><h4>Remove User as
+                            Administrator</h4></a>
+                        </li>
                         {% endif %}
-                        {% if current_user.is_authenticated and current_user.admin == True and user.admin == False or
-                        admin_count < 1 and user.admin == False and current_user.is_authenticated and current_user == user %}
+                        {% endif %}
+                        {% if current_user.admin == True and user.admin == False or user.admin == False and admin_count < 1 %}
                         <li><a href="{{ url_for('make_admin', user_id=user.id) }}"><h4>Make Administrator</h4></a>
+                        </li>
+                        {% endif %}
+                        {% if current_user.is_authenticated and current_user.admin == True and user.author == False and
+                        user.admin == False %}
+                        <li><a href="{{ url_for('make_author', user_id=user.id) }}"><h4>Make Author</h4></a>
+                        </li>
+                        {% endif %}
+                        {% if current_user.is_authenticated and current_user.admin == True and user.author == True and user.admin == False %}
+                        <li><a href="{{ url_for('remove_author', user_id=user.id) }}"><h4>Remove User as Author</h4></a>
                         </li>
                         {% endif %}
                     </ul>

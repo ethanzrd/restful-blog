@@ -27,7 +27,7 @@
         <div class="col-lg-8 col-md-10 mx-auto">
             {% with messages = get_flashed_messages() %}
             {% for message in messages %}
-            {% if message != 'This user does not exist.' and message != 'Could not find a user with the specified ID.' and message != 'No support email specified, unable to send message.' and message != 'Malformed page request for user profile.' and message != "Could not find a post with the specified ID."%}
+            {% if message != 'This user does not exist.' and message != 'Could not find a user with the specified ID.' and message != 'No support email specified, unable to send message.' and message != 'Malformed page request for user profile.' and message != "Could not find a post with the specified ID." and message != "Could not find a post with the specified ID." and message != 'Could not find a comment with the specified ID.' and message != 'The author could not be found.' %}
             <div class="alert alert-success" role="alert" style="margin-bottom: 50px;">
                 <center>
                     <strong>{{ message }}</strong>
@@ -110,17 +110,17 @@
             {% if posts_count != 0 %}
             {% for post in deleted_posts %}
             <div class="post-preview">
-                <a href="{{ url_for('show_post', post_id=post['post_id'], deleted=True) }}">
+                <a href="{{ url_for('show_post', post_id=post[0], deleted=True) }}">
                     <h2 class="post-title">
-                        {{post["post_title"]}}
+                        {{post[1]["post_title"]}}
                     </h2>
                     <h3 class="post-subtitle">
-                        {{post["subtitle"]}}
+                        {{post[1]["subtitle"]}}
                     </h3>
                 </a>
                 <p class="post-meta">Posted by
-                    <a href="{{ url_for('user_page', user_id=post['author_id']) }}">{{post["author"]}}</a>
-                    on {{post["date"]}}
+                    <a href="{{ url_for('user_page', user_id=post[1]['author_id']) }}">{{post[1]["author"]}}</a>
+                    on {{post[1]["date"]}}
             </div>
             <hr>
             {% endfor %}
@@ -156,7 +156,9 @@
                         Joined {{ user.join_date }}
                     </span>
                     <p class="post-meta" style="margin-top: 15px;">
-                        {% if user.admin == True %}Website Administrator{% endif %}
+                        {% set taken = False %}
+                        {% if user.admin == True %}Website Administrator {% set taken = True %}{% endif %}
+                        {% if taken == False and user.author == True %}Author{% endif %}
                     </p>
                 </div>
                 <hr>
@@ -195,9 +197,11 @@
                                 PANEL
                                 <span class="caret"></span></button>
                             <ul class="dropdown-menu">
-                                {% if current_user.admin == True %}
+                                {% if current_user.admin == True or current_user.author == True %}
                                 <li><a href="{{ url_for('add_post') }}"><h4>Add Post</h4></a></li>
                                 <li><a href="{{ url_for('deleted_posts') }}"><h4>Recover Deleted Posts</h4></a></li>
+                                {% endif %}
+                                {% if current_user.admin == True %}
                                 <li><a href="{{ url_for('settings') }}"><h4>Settings</h4></a></li>
                                 {% endif %}
                                 <li><a href="{{ url_for('user_page', user_id=current_user.id) }}"><h4>My Profile</h4>
