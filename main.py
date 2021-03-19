@@ -389,7 +389,7 @@ def get_options(requested_page: int = 1, website=False):
     else:
         if current_user.is_authenticated:
             options_dict = {}
-            if check_api(current_user.id):
+            if check_api(current_user.id) is False:
                 try:
                     last_id = list(options_dict.keys())[-1] + 1
                 except IndexError:
