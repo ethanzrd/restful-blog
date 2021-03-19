@@ -130,15 +130,15 @@
                         {{all_posts[post]}} - {{all_posts["description"]}}
                     </h2>
                     {% endif %}
-                    {% if post != 'name' and post != 'description' %}
-                    <h2 class="post-title">
-                        {{post}}
-                    </h2>
-                    <h3 class="post-subtitle">
-                        {{all_posts[post]}}
-                    </h3>
-                    {% endif %}
                 </a>
+                {% if post != 'name' and post != 'description' %}
+                <h2 class="post-title">
+                    {{post}}
+                </h2>
+                <h3 class="post-subtitle">
+                    {{all_posts[post]}}
+                </h3>
+                {% endif %}
                 <p class="post-meta">
 
                 </p>
