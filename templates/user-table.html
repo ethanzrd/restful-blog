@@ -1,0 +1,69 @@
+{% extends "bootstrap/base.html" %}
+{% block content %}
+{% include "header.html" %}
+
+<!-- Page Header -->
+<header class="masthead"
+        style="background-image: url({{ background_image }})">
+    <!--        style="background-image: url('https://images.unsplash.com/photo-1470092306007-055b6797ca72?ixlib=rb-1.2.1&auto=format&fit=crop&w=668&q=80')">-->
+    <div class="overlay"></div>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="site-heading">
+                    <h1>Users Table</h1>
+                    <span class="subheading">Visualize your users database effortlessly.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto content" style="line-height: 2.5;">
+            {% with messages = get_flashed_messages() %}
+            {% for message in messages %}
+            <div class="alert alert-{{category}}" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>{{ message }}</strong>
+                </center>
+            </div>
+            {% endfor %}
+            {% endwith %}
+            {% for user in users %}
+            <div class="post-preview">
+                {% if user["permissions"] != None %}
+                <a href="{{ url_for('user_page', user_id=user['id']) }}"></a>
+                {% else %}
+                <a href="#"></a>
+                {% endif %}
+                <h2 class="post-title">
+                    {{user["username"]}}
+                </h2>
+                {% if user["posts_num"] != None %}
+                <h3 class="post-subtitle">
+                    Number of Posts: {{user["posts_num"]}}
+                </h3>
+                {% else %}
+                <h3 class="post-subtitle">
+
+                </h3>
+                {% endif %}
+                <p class="post-meta">Permissions:
+                    {% if user["permissions"] != None %}{{user["permissions"]}}{% else %}Unconfirmed User{% endif %}
+                </p>
+            </div>
+            <hr>
+            {% endfor %}
+
+            <div class="clearfix">
+                {% if current_id == 1 %}
+                <a class="btn btn-primary float-left" href="{{ url_for('page', page_id=current_id + 1) }}">DELETE
+                    ALL UNCONFIRMED USERS</a>
+                {% endif %}
+            </div>
+
+
+            {% include "footer.html" %}
+            {% endblock %}
