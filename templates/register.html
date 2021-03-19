@@ -41,7 +41,7 @@
             {% endif %}
             {% endfor %}
             {% endwith %}
-
+            <p style="color: black;">Already have an account? <a href="{{ url_for('login') }}">Click here</a> to login!</p>
             {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
 
         </div>

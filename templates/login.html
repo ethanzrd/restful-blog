@@ -36,6 +36,7 @@
             </div>
             {% endfor %}
             {% endwith %}
+            <p style="color: black;">New to the website? <a href="{{ url_for('register') }}">Click here</a> to register!</p>
             {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
         </div>
     </div>

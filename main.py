@@ -11,12 +11,14 @@
 
 # ------------------ IMPORTS BLOCK ------------------
 
-from flask import Flask, render_template, redirect, url_for, request, flash, abort
+from flask import Flask, render_template, redirect, url_for, request, flash, abort, jsonify
+from functools import wraps
 from flask_msearch import Search
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from sqlalchemy.orm import relationship
+from pyperclip import copy
 from wtforms import StringField, SubmitField, PasswordField, SelectField
 from wtforms.validators import DataRequired, URL, Email
 from flask_ckeditor import CKEditor, CKEditorField
@@ -29,8 +31,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_gravatar import Gravatar
 import os
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
-import html2text
+from html2text import html2text
 from sqlalchemy.dialects.postgresql import JSON
+import random
+import string
 
 # ------------------ END BLOCK ------------------
 
@@ -49,6 +53,7 @@ app.config["MAIL_PORT"] = 587
 app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
 app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
 app.config['MAIL_USE_TLS'] = True
+app.config['JSON_SORT_KEYS'] = False
 EMAIL = os.environ.get('EMAIL')
 db = SQLAlchemy(app)
 mail = Mail(app)
@@ -78,9 +83,29 @@ class User(UserMixin, db.Model):
     author = db.Column(db.Boolean(), default=False)
     posts = relationship("BlogPost", back_populates="author")
     comments = relationship("Comment", back_populates="author")
+    api_key = relationship("ApiKey", back_populates="developer")
 
 
 # ------------------ DATABASE CONFIG ------------------
+
+
+# ------ API KEY TABLE ------
+
+class ApiKey(db.Model):
+    __tablename__ = 'api_keys'
+    id = db.Column(db.Integer, primary_key=True)
+    developer_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    developer = relationship("User", back_populates="api_key")
+    occupation = db.Column(db.String(200), nullable=False)
+    application = db.Column(db.String(1200), nullable=False)
+    usage = db.Column(db.String(1200))
+    api_key = db.Column(db.String(500), nullable=False)
+    all_posts = db.Column(db.Integer, default=0)
+    random_post = db.Column(db.Integer, default=0)
+    all_users = db.Column(db.Integer, default=0)
+
+
+# ------ END ------
 
 # ------ BLOG POSTS TABLE ------
 
@@ -99,7 +124,6 @@ class BlogPost(db.Model):
 
 
 # ------ END ------
-
 
 # ------ COMMENTS TABLE ------
 
@@ -151,6 +175,29 @@ def get_posts():  # GET ALL EXISTING POSTS
         return []
 
 
+def get_user_api(user_id):
+    try:
+        requested_api = ApiKey.query.filter_by(developer_id=user_id).first()
+    except AttributeError:
+        return None
+    if requested_api is not None:
+        api_dict = {1: {"name": "API Info",
+                        "description": "View your key Information.",
+                        "Developer's Occupation": requested_api.occupation,
+                        "Application": requested_api.application,
+                        "API Usage": requested_api.usage,
+                        "API Key": requested_api.api_key},
+                    2: {"name": "API Requests",
+                        "description": "Request statistics.",
+                        "Total Requests": sum([requested_api.all_posts, requested_api.random_post,
+                                               requested_api.all_users]),
+                        "All Posts Requests": requested_api.all_posts,
+                        "Random Post Requests": requested_api.random_post,
+                        "All Users Requests": requested_api.all_users}}
+        return api_dict
+    return None
+
+
 def clean_posts():
     [db.session.delete(post) for post in DeletedPost.query.all()
      if User.query.filter_by(email=post.json_column["author_email"]).first() is None]
@@ -166,6 +213,11 @@ def clean_posts():
             comment = comment.author.email
         except (AttributeError, TypeError):
             db.session.delete(comment)
+    for api_key in ApiKey.query.all():
+        try:
+            key = api_key.developer.email
+        except (AttributeError, TypeError):
+            db.session.delete(api_key)
 
 
 def generate_date():  # GET THE CURRENT DATE IN A STRING FORMAT
@@ -189,11 +241,11 @@ def get_user_comments(user_id):  # GET ALL COMMENTS ASSIGNED TO USER BY USER ID
 
 
 def delete_notification(email, name, action_user, action_title, action_reason):
-    msg = Message('Account Deleted', sender=EMAIL, recipients=[email])
+    msg = Message('Account Deleted', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
     msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account was deleted by {action_user} due to "{action_title}".\n\n' \
-               f'Deletion reasoning by actioning staff member:\n\n{html2text.html2text(action_reason)}\n\n' \
+               f'Deletion reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
                f'If you believe that a mistake was made, contact us by replying to this email or via our website.'
     mail.send(msg)
 
@@ -202,14 +254,14 @@ def set_notification(category, email, name, action_user, action_reason):
     try:
         support_email = get_data()["contact-configuration"]["support_email"]
     except KeyError:
-        msg = Message(f'Account set as {category}', sender=EMAIL, recipients=[email])
+        msg = Message(f'Account set as {category}', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
     else:
-        msg = Message(f'Account set as {category}', sender=EMAIL, recipients=[email,
+        msg = Message(f'Account set as {category}', sender=os.environ.get('EMAIL', EMAIL), recipients=[email,
                                                                                                        support_email])
     msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account was set as an {category} by {action_user}.\n\n' \
-               f'Reasoning by actioning staff member:\n\n{html2text.html2text(action_reason)}\n\n' \
+               f'Reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
                f'Congratulations, if you have any inquires, contact us by replying to this email or via our website.'
     mail.send(msg)
 
@@ -218,14 +270,15 @@ def remove_notification(category, email, name, action_user, action_reason):
     try:
         support_email = get_data()["contact-configuration"]["support_email"]
     except KeyError:
-        msg = Message(f'Account removed as {category}', sender=EMAIL, recipients=[email])
+        msg = Message(f'Account removed as {category}', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
     else:
-        msg = Message(f'Account removed as {category}', sender=EMAIL, recipients=[email,
-                                                                                                           support_email])
+        msg = Message(f'Account removed as {category}', sender=os.environ.get('EMAIL', EMAIL), recipients=[email,
+                                                                                                           support_email
+                                                                                                           ])
     msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account was removed as an {category} by {action_user}.\n\n' \
-               f'Reasoning by actioning staff member:\n\n{html2text.html2text(action_reason)}\n\n' \
+               f'Reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
                f'If you believe that a mistake was made, contact us by replying to this email or via our website.'
     mail.send(msg)
 
@@ -235,23 +288,15 @@ def contact_notification(email, name, action_reason):
         support_email = get_data()["contact_configuration"]["support_email"]
     except KeyError:
         return False
-    msg = Message(f"{get_name()} - Contact Inquiry", sender=EMAIL, recipients=[support_email])
+    msg = Message(f"{get_name()} - Contact Inquiry", sender=os.environ.get('EMAIL', EMAIL), recipients=[support_email])
     msg.body = f"This is an automatic email from {get_name()} to notify you of a" \
                f" user inquiry.\n\n" \
                f'Name: {name}\n\n' \
                f'Email: {email}\n\n' \
-               f'Message:\n\n{html2text.html2text(action_reason)}' \
+               f'Message:\n\n{html2text(action_reason)}' \
                f'Note: This email was set as a support email for {get_name()}, if you are not familiar with the' \
                f' source of this email, please contact us by replying to this email or via our website.'
     mail.send(msg)
-
-
-def redirect_http():
-    if current_user.is_authenticated is False:
-        return abort(403)
-    if current_user.admin is False and current_user.author is False:
-        return abort(403)
-    return None
 
 
 def admin_redirect():
@@ -285,7 +330,7 @@ def get_data(homepage=False):  # GET CONFIG DATA
                             "page_subheading": "Contact us, and we'll respond as soon as we can.",
                             "page_description": "With the current workload, we are able to respond within 24 hours.",
                             "background_image": "https://www.panggi.com/images/featured/python.png",
-                            "support_email": EMAIL
+                            "support_email": os.environ.get('EMAIL', EMAIL)
                         },
                         "about_configuration": {
                             "page_heading": "About us",
@@ -320,12 +365,122 @@ def get_data(homepage=False):  # GET CONFIG DATA
         return redirect(url_for("home"))
 
 
+def get_options(requested_page: int = 1, website=False):
+    if website:
+        if current_user.is_authenticated and current_user.admin is True:
+            options_dict = {1: {"name": "Website Configuration",
+                                "desc": "Configure your website.",
+                                "func": "web_configuration"},
+                            2: {"name": "Contact Me Configuration",
+                                "desc": 'Configure the "Contact Me" page.',
+                                "func": "contact_configuration"},
+                            3: {"name": "About Me Configuration",
+                                "desc": 'Configure the "About Me" page.',
+                                "func": "about_configuration"},
+                            4: {"name": "Authentication Configuration",
+                                "desc": "Configure the website's authentication system.",
+                                "func": "authentication_configuration"},
+                            5: {"name": "User Database Table",
+                                "desc": "Visualize your user database effortlessly.",
+                                "func": "user_table"}
+                            }
+        else:
+            return abort(403)
+    else:
+        if current_user.is_authenticated:
+            options_dict = {}
+            if ApiKey.query.filter_by(developer_id=current_user.id) is None:
+                try:
+                    last_id = list(options_dict.keys())[-1] + 1
+                except IndexError:
+                    last_id = 1
+                options_dict[last_id] = {"name": "Generate API Key",
+                                         "desc": "Generate an API Key to use our API services.",
+                                         "func": "generate_key"}
+        else:
+            return abort(401)
+    result = requested_page * 3
+    if requested_page != 1:
+        options = [options_dict[option] for i in range(result - 2, result + 1) for option in options_dict.keys()
+                   if option == i]
+    else:
+        options = list(options_dict.values())[:3]
+
+    return options
+
+
 def update_data(given_data):  # UPDATE CONFIG DATA
     new_data = Data(json_column=given_data)
     if len(Data.query.all()) > 0 and Data.query.all()[0] is not None:
         db.session.delete(Data.query.all()[0])
     db.session.add(new_data)
     db.session.commit()
+
+
+def get_post_dict(post):
+    post_dict = {"post": {"author": post.author.name,
+                          "title": post.title,
+                          "subtitle": post.subtitle,
+                          "published_on": post.date,
+                          "contents": html2text(post.body).strip(),
+                          "img_url": post.img_url,
+                          "comments": [(comment.author.name, html2text(comment.comment).strip()) for comment
+                                       in post.comments]
+                          }}
+    return post_dict
+
+
+def generate_new():
+    def get_new():
+        new = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
+        return new
+
+    while True:
+        new_key = get_new()
+        if any([key.api_key for key in ApiKey.query.all() if key == new_key]):
+            new_key = get_new()
+        else:
+            break
+    return new_key
+
+
+def check_api(user_id):
+    return ApiKey.query.filter_by(developer_id=user_id).first() is not None
+
+
+def validate_key(api_key):
+    return any([key for key in ApiKey.query.all() if api_key == key.api_key])
+
+
+def get_users_filter(view_filter=None):
+    if view_filter == 'admin':
+        users = User.query.filter_by(admin=True).all()
+    elif view_filter == 'author':
+        users = User.query.filter_by(author=True).all()
+    elif view_filter == 'registered':
+        users = User.query.filter_by(confirmed_email=True).all()
+    elif view_filter == 'unconfirmed':
+        users = User.query.filter_by(confirmed_email=False).all()
+    else:
+        users = User.query.all()
+    return users
+
+
+def get_user_dict(users):
+    user_dict = {users.index(user) + 1: {"id": user.id,
+                                         "email": user.email,
+                                         "username": user.name,
+                                         "posts_num":
+                                             len(user.posts),
+                                         "is_developer": ApiKey.query.filter_by(developer_id=user.id).first()
+                                                         is not None,
+                                         "permissions": [
+                                             "Administrator" if user.admin is True else "Author" if user.author is True
+                                             else "Developer" if check_api(user.id) else
+                                             "Registered User" if user.confirmed_email is True else None][0],
+                                         "confirmed": user.confirmed_email,
+                                         "joined_on": user.join_date} for user in users}
+    return user_dict
 
 
 def check_errors():  # CHECK FOR ERRORS IN DATA
@@ -380,10 +535,18 @@ def forbidden(e):
 
 
 @app.errorhandler(404)
-def unauthorized(e):
+def not_found(e):
     return render_template('http-error.html', background_image=get_background('website_configuration'),
                            error="404 - Page Not Found", error_description="Page not found.",
                            name=get_name()), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           error="500 - Internal Server Error", error_description="An error has occurred on our side,"
+                                                                                  "we apologize for the inconvenience.",
+                           name=get_name()), 500
 
 
 # ------------------ END ------------------
@@ -550,6 +713,63 @@ class AuthConfig(FlaskForm):
 
 # ------ END ------
 
+# ------ API KEY GENERATOR FORM ------
+
+class ApiGenerate(FlaskForm):
+    occupation = SelectField("What are you?", choices=[('Student', 'Student'), ('Professional Developer',
+                                                                                'Professional Developer'),
+                                                       ('Hobbyist', 'Hobbyist'), ('Other', 'Other')])
+    application = StringField("Tell us about your application in short.", validators=[DataRequired()])
+    usage = CKEditorField("What will you be using our API service for?", validators=[DataRequired()])
+    submit = SubmitField("Generate API Key", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
+
+# ------------------ END BLOCK ------------------
+
+
+# ------------------ WRAPPER BLOCK ------------------
+
+
+def logout_required(func):
+    """Checks whether user is logged in or raises error 401."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if current_user.is_authenticated:
+            abort(401)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def admin_only(func):
+    """Checks whether user is admin or raises error 403."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if current_user.is_authenticated is False or current_user.admin is False:
+            abort(403)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def staff_only(func):
+    """Checks whether a user is a staff member or raises 403 error."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if current_user.is_authenticated is False:
+            abort(403)
+        if current_user.admin is False and current_user.author is False:
+            abort(403)
+        return func(*args, **kwargs)
+
+    return wrapper
+
 
 # ------------------ END BLOCK ------------------
 
@@ -569,6 +789,10 @@ def page(page_id):
     deleted = request.args.get('deleted')
     user_id = request.args.get('user_id')
     current_mode = request.args.get('current_mode')
+    table_page = request.args.get('table_page')
+    view_filter = request.args.get('view_filter')
+    settings_view = request.args.get('settings')
+    mode = request.args.get('mode')
     data = get_data(homepage=True)
     if deleted == 'True':
         blog_posts = get_deleted()
@@ -587,7 +811,7 @@ def page(page_id):
         user = User.query.get(user_id)
         posts = get_user_posts(user_id)
         comments = get_user_comments(user_id)
-        if current_mode in ['posts', 'comments']:
+        if current_mode in ['posts', 'comments', 'api']:
             if current_mode == 'posts':
                 blog_posts = posts
                 if page_id == 1:
@@ -602,7 +826,7 @@ def page(page_id):
                                        name=get_name(),
                                        background_image=get_background('website_configuration'), current_mode='posts',
                                        user=user)
-            else:
+            elif current_mode == 'comments':
                 blog_posts = comments
                 if page_id == 1:
                     return redirect(url_for('user_page', user_id=user_id, current_mode='comments'))
@@ -617,9 +841,86 @@ def page(page_id):
                                        name=get_name(),
                                        background_image=get_background('website_configuration'),
                                        current_mode='comments', user=user)
+            elif current_mode == 'api':
+                requested_api = get_user_api(user_id)
+                if page_id == 1:
+                    return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
+                if requested_api is not None:
+                    if current_user.email == ApiKey.query.get(user_id).developer.email or current_user.admin is True:
+                        try:
+                            return render_template("user.html", all_posts=requested_api[page_id],
+                                                   current_id=page_id,
+                                                   title=f"{user.name}'s Profile", subtitle=f"{user.name}'s API Key",
+                                                   name=get_name(),
+                                                   background_image=get_background('website_configuration'),
+                                                   current_mode='api',
+                                                   user=user, posts_count=len(requested_api[page_id]),
+                                                   admin_count=get_admin_count())
+                        except (KeyError, IndexError):
+                            return render_template("user.html", all_posts={},
+                                                   current_id=page_id,
+                                                   title=f"{user.name}'s Profile", subtitle=f"{user.name}'s API Key",
+                                                   name=get_name(),
+                                                   background_image=get_background('website_configuration'),
+                                                   current_mode='api',
+                                                   user=user, posts_count=0,
+                                                   admin_count=get_admin_count())
+                    else:
+                        if current_user.is_authenticated:
+                            return abort(403)
+                        else:
+                            return abort(401)
+                else:
+                    flash("Could not find an API with the specified ID.")
+                    return redirect(url_for(user_page, user_id=user_id))
         else:
             flash("Malformed page request for user profile.")
             return redirect(url_for('home'))
+    elif table_page is not None:
+        users_filter = get_users_filter(view_filter)
+        blog_posts = list(get_user_dict(users_filter).values())
+        if page_id == 1:
+            return redirect(url_for('user_table', view_filter=view_filter))
+        result = page_id * 3
+        posts = blog_posts[result - 3:result]
+        count = 0
+        for _ in posts:
+            count += 1
+        return render_template('index.html', users=posts, user_table="True",
+                               posts_count=count, current_id=page_id, name=get_name(), title="User Database Table",
+                               subtitle="Visualize your user database effortlessly.",
+                               background_image=get_background('website_configuration'),
+                               unconfirmed=any(User.query.filter_by(confirmed_email=False).all()),
+                               current_view=view_filter)
+    elif settings_view is not None:
+        if mode != 'admin':
+            if current_user.is_authenticated:
+                options = get_options(requested_page=page_id)
+                errors = {}
+                title = "Account Settings"
+                subtitle = 'Here you will be able to configure your account settings.'
+            else:
+                return abort(401)
+        else:
+            if current_user.is_authenticated and current_user.admin is True:
+                options = get_options(requested_page=page_id, website=True)
+                errors = check_errors()
+                title = "Settings"
+                subtitle = "Here you will be able to access primary website configurations."
+            else:
+                return abort(403)
+        count = 0
+        if page_id == 1:
+            return redirect(url_for('settings', mode=mode))
+        for _ in options:
+            count += 1
+        return render_template('index.html', settings="True", options=options,
+                               options_count=len(options),
+                               errors=errors, title=title,
+                               subtitle=subtitle,
+                               name=get_name(),
+                               background_image=get_background('website_configuration'), current_id=page_id,
+                               posts_count=count, mode=mode)
     else:
         blog_posts = get_posts()
         if page_id == 1:
@@ -772,9 +1073,8 @@ def show_post(post_id):
 
 
 @app.route('/edit/<int:post_id>', methods=['GET', 'POST'])
-@login_required
+@staff_only
 def edit_post(post_id):
-    redirect_http()
     post = BlogPost.query.get(post_id)
     if post is not None:
         if post.author.email == current_user.email:
@@ -798,9 +1098,8 @@ def edit_post(post_id):
 
 
 @app.route('/add', methods=['GET', 'POST'])
-@login_required
+@staff_only
 def add_post():
-    redirect_http()
     form = CreatePostForm()
     if form.validate_on_submit():
         date = generate_date()
@@ -818,9 +1117,8 @@ def add_post():
 
 
 @app.route('/deleted')
-@login_required
+@staff_only
 def deleted_posts():
-    redirect_http()
     posts = get_deleted()[:3]
     return render_template('index.html', deleted_posts=posts,
                            deleted="True",
@@ -830,12 +1128,12 @@ def deleted_posts():
 
 
 @app.route('/delete/<int:post_id>')
-@login_required
+@staff_only
 def delete_post(post_id):
-    redirect_http()
     post = BlogPost.query.get(post_id)
     if post is not None:
-        if current_user.is_authenticated and current_user.author is True and post.author.email == current_user.email or current_user.is_authenticated and current_user.admin is True:
+        if current_user.is_authenticated and current_user.author is True and post.author.email == current_user.email \
+                or current_user.is_authenticated and current_user.admin is True:
             try:
                 lst = Comment.query.filter_by(post_id=post.id).all()
             except AttributeError:
@@ -851,7 +1149,8 @@ def delete_post(post_id):
                 "body": post.body,
                 "date": post.date,
                 "comments": [{"author_id": comment.author_id, "author": comment.author.name,
-                              "author_email": comment.author.email, "post_id": comment.post_id, "comment": comment.comment,
+                              "author_email": comment.author.email, "post_id": comment.post_id,
+                              "comment": comment.comment,
                               "date": comment.date} for comment in lst]
             }
             new_deleted = DeletedPost(json_column=new_post)
@@ -868,9 +1167,8 @@ def delete_post(post_id):
 
 
 @app.route('/recover/<int:post_id>')
-@login_required
+@staff_only
 def recover_post(post_id):
-    redirect_http()
     try:
         actual = DeletedPost.query.get(post_id)
         post = actual.json_column
@@ -902,8 +1200,8 @@ def recover_post(post_id):
 
 
 @app.route('/perm-delete/<int:post_id>')
+@admin_only
 def perm_delete(post_id):
-    admin_redirect()
     try:
         actual_post = DeletedPost.query.get(post_id)
         post = actual_post.json_column
@@ -945,32 +1243,36 @@ def delete_comment(comment_id):
 # ------------------ END BLOCK ------------------
 
 
-# ------------------ SETTINGS ------------------
+# ------------------ SETTINGS BLOCK ------------------
 
 @app.route('/settings')
 @login_required
 def settings():
-    admin_redirect()
-    options = {"Website Configuration": {"desc": "Configure your website.",
-                                         "func": "web_configuration"},
-               'Contact Me Configuration': {"desc": 'Configure the "Contact Me" page.',
-                                            "func": "contact_configuration"},
-               'About Me Configuration': {"desc": 'Configure the "About Me" page.',
-                                          "func": "about_configuration"},
-               'Authentication Configuration': {"desc": "Configure the website's authentication system.",
-                                                "func": "authentication_configuration"}}
-    return render_template('index.html', settings=True, options=options,
-                           options_count=len(list(options.keys())),
-                           errors=check_errors(), title="Settings",
-                           subtitle="Here you will be able to access primary website configurations.",
+    mode = request.args.get('mode')
+    if mode != 'admin':
+        options = get_options()
+        title = "Account Settings"
+        subtitle = "Here you will be able to configure your account settings."
+        errors = {}
+    else:
+        if current_user.admin is True:
+            options = get_options(website=True)
+            title = "Settings"
+            subtitle = "Here you will be able to access primary website configurations."
+            errors = check_errors()
+        else:
+            abort(403)
+    return render_template('index.html', settings="True", options=options,
+                           posts_count=len(options),
+                           errors=errors, title=title,
+                           subtitle=subtitle,
                            name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), current_id=1, mode=mode)
 
 
 @app.route('/web-configure', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def web_configuration():
-    admin_redirect()
     data = get_data()
     try:
         config_data = data['website_configuration']
@@ -1004,9 +1306,8 @@ def web_configuration():
 
 
 @app.route('/contact-configure', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def contact_configuration():
-    admin_redirect()
     data = get_data()
     try:
         config_data = data['contact_configuration']
@@ -1036,9 +1337,8 @@ def contact_configuration():
 
 
 @app.route('/about-configure', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def about_configuration():
-    admin_redirect()
     data = get_data()
     try:
         config_data = data['about_configuration']
@@ -1065,9 +1365,8 @@ def about_configuration():
 
 
 @app.route('/auth-configure', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def authentication_configuration():
-    admin_redirect()
     form = AuthConfig()
     data = get_data()
     try:
@@ -1106,6 +1405,34 @@ def authentication_configuration():
 
 # ------------------ USER BLOCK ------------------
 
+
+@app.route('/user-table')
+@admin_only
+def user_table():
+    view_filter = request.args.get('view_filter')
+    users = get_users_filter(view_filter)
+    user_dict = get_user_dict(users)
+    return render_template('index.html', users=list(user_dict.values())[:3],
+                           background_image=get_background('website_configuration'),
+                           name=get_name(), current_id=1, user_table="True", title="User Database Table",
+                           subtitle="Visualize your user database effortlessly.",
+                           posts_count=len(list(user_dict.values())),
+                           current_view=view_filter, unconfirmed=any(User.query.filter_by(confirmed_email=False).all()))
+
+
+@app.route('/delete-unconfirmed')
+@admin_only
+def delete_unconfirmed():
+    unconfirmed = User.query.filter_by(confirmed_email=False).all()
+    if any(unconfirmed):
+        [db.session.delete(user) for user in unconfirmed]
+        flash("All unconfirmed users have been deleted from the user database.")
+        db.session.commit()
+    else:
+        flash("No unconfirmed users in the database.")
+    return redirect(url_for("user_table"))
+
+
 @app.route('/admin/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def make_admin(user_id):
@@ -1137,9 +1464,8 @@ def make_admin(user_id):
 
 
 @app.route('/admin-remove/<int:user_id>', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def remove_admin(user_id):
-    admin_redirect()
     user = User.query.get(user_id)
     authorized = request.args.get('authorized')
     form = MakeUserForm()
@@ -1165,9 +1491,8 @@ def remove_admin(user_id):
 
 
 @app.route('/author/<int:user_id>', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def make_author(user_id):
-    admin_redirect()
     user = User.query.get(user_id)
     form = MakeUserForm()
     if user is not None:
@@ -1190,9 +1515,8 @@ def make_author(user_id):
 
 
 @app.route('/author-remove/<int:user_id>', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def remove_author(user_id):
-    admin_redirect()
     user = User.query.get(user_id)
     form = MakeUserForm()
     if user is not None:
@@ -1226,23 +1550,46 @@ def user_page(user_id):
             return render_template("user.html", comments=comments[:3], posts_count=len(comments[:3]), current_id=1,
                                    title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Comments", name=get_name(),
                                    background_image=get_background('website_configuration'), current_mode='comments',
-                                   user=user,
+                                   user=user, api_exists=check_api(user_id),
                                    admin_count=admin_count)
-        else:
+        elif current_mode == 'posts' or current_mode is None:
             return render_template("user.html", all_posts=posts[:3], posts_count=len(posts[:3]), current_id=1,
                                    title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Posts", name=get_name(),
                                    background_image=get_background('website_configuration'), current_mode='posts',
                                    user=user,
-                                   admin_count=admin_count)
+                                   admin_count=admin_count,
+                                   api_exists=check_api(user_id))
+        elif current_mode == 'api':
+            if current_user.is_authenticated and current_user.email == User.query.get(user_id).email \
+                    or current_user.admin is True:
+                requested_api = get_user_api(user_id)
+                if requested_api is not None:
+                    return render_template("user.html", all_posts=requested_api[1],
+                                           current_id=1,
+                                           title=f"{user.name}'s Profile", subtitle=f"{user.name}'s API Key",
+                                           name=get_name(),
+                                           background_image=get_background('website_configuration'),
+                                           current_mode='api',
+                                           user=user, posts_count=1,
+                                           admin_count=admin_count)
+                else:
+                    flash("Could not find an API key with the specified ID.")
+                    return redirect(url_for('home'))
+            else:
+                if current_user.is_authenticated:
+                    return abort(403)
+                else:
+                    return abort(401)
+        else:
+            return abort(404)
     else:
         flash("Could not find a user with the specified ID.")
         return redirect(url_for('home'))
 
 
 @app.route('/delete-user/<int:user_id>', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def delete_user(user_id):
-    admin_redirect()
     user = User.query.get(user_id)
     authorized = request.args.get('authorized')
     if user is not None:
@@ -1268,9 +1615,8 @@ def delete_user(user_id):
 
 
 @app.route('/auth', methods=['GET', 'POST'])
-@login_required
+@admin_only
 def authorization():
-    admin_redirect()
     form = AuthForm()
     user_id = request.args.get('user_id')
     if User.query.get(user_id) is None:
@@ -1332,7 +1678,7 @@ def admin_auth():
 
 def verify_user(email, name):
     token = serializer.dumps(email, salt='email-verify')
-    msg = Message('Confirmation Email', sender=EMAIL, recipients=[email])
+    msg = Message('Confirmation Email', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
     link = url_for('verify_email', token=token, email=email, _external=True)
     msg.body = f"Hello {name}, please go to this link to finalize your registration.\n\n" \
                f"{link}\n\nNote: If you're unfamiliar with the source of this email, simply ignore it."
@@ -1347,6 +1693,7 @@ def load_user(user_id):
 
 
 @app.route('/register', methods=['GET', 'POST'])
+@logout_required
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
@@ -1406,6 +1753,7 @@ def verify_email(token):
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@logout_required
 def login():
     form = LoginForm()
     user_name = None
@@ -1447,10 +1795,152 @@ def logout():
     return redirect(url_for('home'))
 
 
-# ------------------ END BLOCK ------------------
+# ------------------ END BLOCK -----------------
 
+
+# ------------------ API BLOCK ------------------
+
+@app.route('/api/generate-key', methods=['GET', 'POST'])
+@login_required
+def generate_key():
+    if ApiKey.query.filter_by(developer=current_user).first() is None:
+        form = ApiGenerate()
+        if form.validate_on_submit():
+            new_key = ApiKey(developer=current_user, occupation=form.occupation.data, application=form.application.data,
+                             usage=html2text(form.usage.data), api_key=generate_new())
+            db.session.add(new_key)
+            db.session.commit()
+            return redirect(url_for('user_page', user_id=current_user.id, current_mode='api'))
+        return render_template('config.html', config_title="API Key Generation",
+                               config_desc="Generate an API Key to use our API Service.", form=form,
+                               config_func="generate_key", name=get_name(),
+                               background_image=get_background('website_configuration'))
+    else:
+        flash("You already have an API key.")
+        return redirect(url_for('user_page', user_id=current_user.id, current_mode='api'))
+
+
+@app.route('/api/all-posts')
+def api_all_posts():
+    api_key = request.args.get('api_key')
+    if api_key is not None:
+        if validate_key(api_key) is True:
+            try:
+                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                requesting_user.all_posts += 1
+            except AttributeError:
+                return abort(500)
+            posts = get_posts()
+            posts_dict = {posts.index(post) + 1: {"author": post.author.name,
+                                                  "title": post.title,
+                                                  "subtitle": post.subtitle,
+                                                  "published_on": post.date,
+                                                  "contents": html2text(post.body).strip(),
+                                                  "img_url": post.img_url,
+                                                  "comments": [
+                                                      (
+                                                          comment.author.name,
+                                                          html2text(comment.comment).strip())
+                                                      for
+                                                      comment
+                                                      in post.comments]}
+                          for post in posts}
+            db.session.commit()
+            return jsonify(response=posts_dict), 200
+        else:
+            return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+    else:
+        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+
+
+@app.route('/api/random-post')
+def api_random_post():
+    api_key = request.args.get('api_key')
+    if api_key is not None:
+        if validate_key(api_key) is True:
+            try:
+                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                requesting_user.random_post += 1
+            except AttributeError:
+                return abort(500)
+            try:
+                post = random.choice(get_posts())
+            except IndexError:
+                post_dict = {}
+            else:
+                post_dict = {"post": {"author": post.author.name,
+                                      "title": post.title,
+                                      "subtitle": post.subtitle,
+                                      "published_on": post.date,
+                                      "contents": html2text(post.body).strip(),
+                                      "img_url": post.img_url,
+                                      "comments": [(comment.author.name, html2text(comment.comment).strip()) for comment
+                                                   in post.comments]
+                                      }}
+            db.session.commit()
+            return jsonify(response=post_dict), 200
+        else:
+            return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+    else:
+        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+
+
+@app.route('/api/users')
+def api_all_users():
+    api_key = request.args.get('api_key')
+    if api_key is not None:
+        if validate_key(api_key):
+            try:
+                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                requesting_user.all_users += 1
+            except AttributeError:
+                return abort(500)
+            users = User.query.all()
+            users_dict = {users.index(user) + 1: {"username": user.name,
+                                                  "permissions": [
+                                                      "Administrator" if user.admin is True else "Author" if user.author
+                                                                                                             is True else "Registered User" if user.confirmed_email is True
+                                                      else None][0],
+                                                  "posts": {user.posts.index(post) + 1: get_post_dict(post) for post
+                                                            in
+                                                            user.posts},
+                                                  "comments": {
+                                                      user.comments.index(comment) + 1: {"comment": comment.comment,
+                                                                                         "on_post":
+                                                                                             comment.parent_post.title,
+                                                                                         "post_author":
+                                                                                             comment.parent_post
+                                                                                                 .author.name}
+                                                      for comment in user.comments}}
+                          for user in users if user.confirmed_email is True}
+            db.session.commit()
+            return jsonify(response=users_dict)
+        else:
+            return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+    else:
+        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+
+
+@app.route('/api/copy/<int:user_id>')
+@login_required
+def copy_key(user_id):
+    if current_user.id == user_id or current_user.admin is True:
+        requested_api = ApiKey.query.filter_by(developer_id=user_id).first()
+        if requested_api is not None:
+            copy(requested_api.api_key)
+            flash("API Key copied to clipboard.")
+            return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
+        else:
+            flash("Could not find an API key with the specified ID.")
+            return redirect(url_for(user_page, user_id=current_user.id))
+    else:
+        abort(403)
+
+
+# ------------------ END BLOCK ------------------
 
 # ------------------ SERVER CONFIG ------------------
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     app.run(debug=True)

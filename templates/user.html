@@ -27,7 +27,8 @@
             and message != 'The user has been removed as an administrator, a notification has been sent to the user.'
             and
             message != 'This user has been set as an author, a notification has been sent to the user.' and
-            message != 'This user has been removed as an author, a notification has been sent to the user.' %}
+            message != 'This user has been removed as an author, a notification has been sent to the user.' and
+            message != 'API Key copied to clipboard.' %}
             <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
                 <center>
                     <strong>{{ message }}</strong>
@@ -42,9 +43,10 @@
             {% endif %}
             {% endfor %}
             {% endwith %}
+            {% set valid = True %}
+            {% if current_mode != 'api' %}
             {% if current_mode == 'posts' %}
             {% if posts_count != 0 %}
-            {% set valid = True %}
             {% for post in all_posts %}
             <div class="post-preview">
                 <a href="{{ url_for('show_post', post_id=post.id) }}">
@@ -82,7 +84,6 @@
             {% endif %}
             {% else %}
             {% if posts_count != 0 %}
-            {% set valid = True %}
             {% for comment in comments %}
             <div class="post-preview">
                 <a href="{{ url_for('show_post', post_id=comment.post_id) }}">
@@ -119,6 +120,57 @@
             {% endfor %}
             {% endif %}
             {% endif %}
+            {% else %}
+            {% if posts_count != 0 %}
+            {% for post in all_posts %}
+            <div class="post-preview">
+                {% if post == 'API Key' %}
+                <a href="{{ url_for('copy_key', user_id=user.id) }}">
+                    {% else %}
+                <a href="#">
+                    {% endif %}
+                    {% if post == "name" %}
+                    <h2 class="post-title">
+                        {{all_posts[post]}} - {{all_posts["description"]}}
+                    </h2>
+                    {% endif %}
+                    {% if post != 'name' and post != 'description' %}
+                    <h2 class="post-title">
+                        {{post}}
+                    </h2>
+                    <h3 class="post-subtitle">
+                        {{all_posts[post]}}
+                    </h3>
+                    {% endif %}
+                </a>
+                <p class="post-meta">
+
+                </p>
+            </div>
+            {% if post != "name" %}
+            <hr>
+            {% endif %}
+            {% endfor %}
+            {% else %}
+            {% set valid = False %}
+            {% for i in range(3): %}
+            <div class="post-preview">
+                <a href="#">
+                    <h2 class="post-title">
+                        Nothing to show here.
+                    </h2>
+                    <h3 class="post-subtitle">
+                        Looks like there's nothing here.
+                    </h3>
+                </a>
+                <p class="post-meta">
+                    <a href="#">You've reached a dead end, my friend.</a>
+                </p>
+            </div>
+            <hr>
+            {% endfor %}
+            {% endif %}
+            {% endif %}
             <!-- Pager -->
             <div class="clearfix">
                 {% if current_id == 1 %}
@@ -127,10 +179,11 @@
                         USER PANEL
                         <span class="caret"></span></button>
                     <ul class="dropdown-menu">
-                        {% if current_mode == 'posts' %}
+                        {% if current_mode != 'comments' %}
                         <li><a href="{{ url_for('user_page', user_id=user.id, current_mode='comments') }}"><h4>View
                             Comments</h4></a></li>
-                        {% else %}
+                        {% endif %}
+                        {% if current_mode != 'posts' %}
                         <li><a href="{{ url_for('user_page', user_id=user.id, current_mode='posts') }}"><h4>View
                             Posts</h4></a></li>
                         {% endif %}
@@ -143,7 +196,8 @@
                         </li>
                         {% endif %}
                         {% endif %}
-                        {% if current_user.admin == True and user.admin == False or user.admin == False and admin_count < 1 %}
+                        {% if current_user.is_authenticated and current_user.admin == True and user.admin == False or
+                        current_user.is_authenticated and user.admin == False and admin_count < 1 %}
                         <li><a href="{{ url_for('make_admin', user_id=user.id) }}"><h4>Make Administrator</h4></a>
                         </li>
                         {% endif %}
@@ -152,13 +206,21 @@
                         <li><a href="{{ url_for('make_author', user_id=user.id) }}"><h4>Make Author</h4></a>
                         </li>
                         {% endif %}
-                        {% if current_user.is_authenticated and current_user.admin == True and user.author == True and user.admin == False %}
+                        {% if current_user.is_authenticated and current_user.admin == True and user.author == True and
+                        user.admin == False %}
                         <li><a href="{{ url_for('remove_author', user_id=user.id) }}"><h4>Remove User as Author</h4></a>
+                        </li>
+                        {% endif %}
+                        {% if current_user.is_authenticated and current_user.email == user.email and api_exists and
+                        current_mode != "api" or current_user.admin
+                        == True and current_mode != "api" and api_exists %}
+                        <li><a href="{{ url_for('user_page', user_id=user.id, current_mode='api') }}"><h4>View API
+                            Information</h4></a>
                         </li>
                         {% endif %}
                     </ul>
                     {% if valid %}
-                    {% if posts_count >= 3 %}
+                    {% if posts_count >= 3 or current_mode == 'api' and current_id == 1 and posts_count > 0 %}
                     <a class="btn btn-primary float-right"
                        href="{{ url_for('page', page_id=current_id + 1, current_mode=current_mode, user_id=user.id) }}">NEXT
                         PAGE

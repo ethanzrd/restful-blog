@@ -25,3 +25,4 @@ psycopg2-binary==2.8.6
 html2text==2020.1.16
 flask_msearch==0.2.9
 flask_mail==0.9.1
+pyperclip==1.8.2
