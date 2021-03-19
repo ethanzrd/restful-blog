@@ -18,7 +18,7 @@ from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from sqlalchemy.orm import relationship
-from pyperclip import copy
+import pyperclip
 from wtforms import StringField, SubmitField, PasswordField, SelectField
 from wtforms.validators import DataRequired, URL, Email
 from flask_ckeditor import CKEditor, CKEditorField
@@ -1298,7 +1298,7 @@ def web_configuration():
         }
         data.update(new_data)
         update_data(data)
-        return redirect(url_for('settings'))
+        return redirect(url_for('settings', mode='admin'))
     return render_template('config.html', config_title="Website Configuration",
                            config_desc="Configure primary website elements.", form=form,
                            config_func="web_configuration", name=get_name(),
@@ -1329,7 +1329,7 @@ def contact_configuration():
         }
         data.update(new_data)
         update_data(data)
-        return redirect(url_for('settings'))
+        return redirect(url_for('settings', mode='admin'))
     return render_template('config.html', config_title="Contact Page Configuration",
                            config_desc="Configure primary elements of the contact page.", form=form,
                            config_func="contact_configuration", name=get_name(),
@@ -1357,7 +1357,7 @@ def about_configuration():
         }
         data.update(new_data)
         update_data(data)
-        return redirect(url_for('settings'))
+        return redirect(url_for('settings', mode='admin'))
     return render_template('config.html', config_title="About Page Configuration",
                            config_desc="Configure primary elements of the about page.", form=form,
                            config_func="about_configuration", name=get_name(),
@@ -1393,7 +1393,7 @@ def authentication_configuration():
             new_data = {"secret_password": new_password}
             data.update(new_data)
             update_data(data)
-            return redirect(url_for('settings'))
+            return redirect(url_for('settings', mode='admin'))
     return render_template('config.html', config_title="Authentication Configuration",
                            config_desc="Configure primary elements of the website's authentication", form=form,
                            config_func="authentication_configuration", name=get_name(),
@@ -1927,7 +1927,12 @@ def copy_key(user_id):
     if current_user.id == user_id or current_user.admin is True:
         requested_api = ApiKey.query.filter_by(developer_id=user_id).first()
         if requested_api is not None:
-            copy(requested_api.api_key)
+            try:
+                pyperclip.copy(requested_api.api_key)
+            except pyperclip.PyperclipException:
+                flash("Could not find a copy mechanism for your OS.")
+                return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
+
             flash("API Key copied to clipboard.")
             return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
         else:
