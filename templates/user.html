@@ -124,9 +124,6 @@
             {% if posts_count != 0 %}
             {% for post in all_posts %}
             <div class="post-preview">
-                {% if post == 'API Key' %}
-                <a href="{{ url_for('copy_key', user_id=user.id) }}">
-                    {% else %}
                 <a href="#">
                     {% endif %}
                     {% if post == "name" %}
