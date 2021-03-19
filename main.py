@@ -1921,25 +1921,25 @@ def api_all_users():
         return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
 
 
-@app.route('/api/copy/<int:user_id>')
-@login_required
-def copy_key(user_id):
-    if current_user.id == user_id or current_user.admin is True:
-        requested_api = ApiKey.query.filter_by(developer_id=user_id).first()
-        if requested_api is not None:
-            try:
-                pyperclip.copy(requested_api.api_key)
-            except pyperclip.PyperclipException:
-                flash("Could not find a copy mechanism for your OS.")
-                return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
-
-            flash("API Key copied to clipboard.")
-            return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
-        else:
-            flash("Could not find an API key with the specified ID.")
-            return redirect(url_for(user_page, user_id=current_user.id))
-    else:
-        abort(403)
+# @app.route('/api/copy/<int:user_id>')
+# @login_required
+# def copy_key(user_id):
+#     if current_user.id == user_id or current_user.admin is True:
+#         requested_api = ApiKey.query.filter_by(developer_id=user_id).first()
+#         if requested_api is not None:
+#             try:
+#                 pyperclip.copy(requested_api.api_key)
+#             except pyperclip.PyperclipException:
+#                 flash("Could not find a copy mechanism for your OS.")
+#                 return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
+#
+#             flash("API Key copied to clipboard.")
+#             return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
+#         else:
+#             flash("Could not find an API key with the specified ID.")
+#             return redirect(url_for(user_page, user_id=current_user.id))
+#     else:
+#         abort(403)
 
 
 # ------------------ END BLOCK ------------------
