@@ -32,7 +32,12 @@
             for user profile.' and message != "Could not find a post with the specified ID." and message != "Could not
             find a post with the specified ID." and message != 'Could not find a comment with the specified ID.' and
             message != 'The author could not be found.' and message != "No unconfirmed users in the database." and
-            message != "Could not find an API key with the specified ID." %}
+            message != "Could not find an API key with the specified ID." and message != "You've already confirmed your
+            email."
+            and message != 'Your account is already in a pending deletion state.' and message != "Incorrect token,
+            please try again."
+            and message != "The token is expired, please try again."
+            and message != 'Could not find a deletion report with the specified ID.' %}
             <div class="alert alert-success" role="alert" style="margin-bottom: 50px;">
                 <center>
                     <strong>{{ message }}</strong>
@@ -221,16 +226,23 @@
                                 {% endif %}
                             </h3>
                         </a>
-                        {% if user["is_developer"] == True %}
-                        <p class="post-meta" style="margin-top: 30px;">
-                            <a style="text-decoration: none;" href="{{ url_for('user_page', user_id=user['id'], current_mode='api') }}">Developer
-                                Account</a>
-                        </p>
-                        {% endif %}
-                        <p class="post-meta">Permissions:{% if user["permissions"] != None %}
+                        <p class="post-meta" style="margin-top: 30px;">Permissions:{% if user["permissions"] != None %}
                             {{user["permissions"]}}
                             {% else %} Unconfirmed User{% endif %}
                         </p>
+                        {% if user["is_developer"] == True %}
+                        <p class="post-meta">
+                            <a href="{{ url_for('user_page', user_id=user['id'], current_mode='api') }}"
+                               style="text-decoration: none;">Developer
+                                Account</a>
+                        </p>
+                        {% endif %}
+                        {% if user["pending_deletion"] == True %}
+                        <p class="post-meta">
+                            <a href="{{ url_for('user_page', user_id=user['id'], current_mode='delete-report') }}"
+                               style="text-decoration: none;">Pending Deletion Request</a>
+                        </p>
+                        {% endif %}
                         <p class="post-meta">
                             Email address: {{user["email"]}}
                         </p>
@@ -317,6 +329,11 @@
                                             Unconfirmed Users Only</h4></a>
                                         </li>
                                         {% endif %}
+                                        {% if current_view != 'pending' %}
+                                        <li><a href="{{ url_for('user_table', view_filter='pending') }}"><h4>View
+                                            Pending Deletion Users Only</h4></a>
+                                        </li>
+                                        {% endif %}
                                         {% if unconfirmed == True %}
                                         <li><a href="{{ url_for('delete_unconfirmed') }}"><h4>
                                             Remove unconfirmed users</h4></a>
@@ -386,6 +403,9 @@
                             </div>
                         </div>
                     </div>
+                    {% if settings == "True" and mode != 'admin' %}
+                    {% set hr_valid = False %}
+                    {% endif %}
                     {% if hr_valid %}
                     <hr>
                     {% endif %}

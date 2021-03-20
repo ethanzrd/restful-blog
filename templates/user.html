@@ -44,7 +44,7 @@
             {% endfor %}
             {% endwith %}
             {% set valid = True %}
-            {% if current_mode != 'api' %}
+            {% if current_mode != 'api' and current_mode != 'delete-report' %}
             {% if current_mode == 'posts' %}
             {% if posts_count != 0 %}
             {% for post in all_posts %}
@@ -123,6 +123,7 @@
             {% else %}
             {% if posts_count != 0 %}
             {% for post in all_posts %}
+            {% if post != 'approval' and post != 'rejection' %}
             <div class="post-preview">
                 <a href="#">
                     {% if post == "name" %}
@@ -146,7 +147,29 @@
             {% if post != "name" %}
             <hr>
             {% endif %}
+            {% endif %}
             {% endfor %}
+            {% if current_user.is_authenticated and current_user.admin == True and current_mode == 'delete-report' %}
+            <div class="post-preview">
+                <a href="#">
+                    <h2 class="post-title">
+
+                    </h2>
+
+                    <h3 class="post-subtitle" style="margin-top: 20px;">
+                        <a href="{{all_posts['approval']}}">Approve Request</a>
+                        <br>
+                        <br>
+                        <a href="{{all_posts['rejection']}}">Reject Request</a>
+                    </h3>
+
+                </a>
+                <p class="post-meta">
+
+                </p>
+            </div>
+            <hr>
+            {% endif %}
             {% else %}
             {% set valid = False %}
             {% for i in range(3): %}
@@ -214,9 +237,19 @@
                             Information</h4></a>
                         </li>
                         {% endif %}
+                        {% if current_user.is_authenticated and current_user.email == user.email and report_exists and
+                        current_mode != 'delete-report' or current_user.is_authenticated and current_user.admin and
+                        current_mode != 'delete-report'
+                        and report_exists %}
+                        <li><a href="{{ url_for('user_page', user_id=user.id, current_mode='delete-report') }}"><h4>View
+                            Pending
+                            Deletion Report</h4></a>
+                        </li>
+                        {% endif %}
                     </ul>
                     {% if valid %}
-                    {% if posts_count >= 3 or current_mode == 'api' and current_id == 1 and posts_count > 0 %}
+                    {% if posts_count >= 3 or current_mode == 'api' and current_id == 1 and posts_count > 0 and
+                    current_mode != 'delete-report' %}
                     <a class="btn btn-primary float-right"
                        href="{{ url_for('page', page_id=current_id + 1, current_mode=current_mode, user_id=user.id) }}">NEXT
                         PAGE

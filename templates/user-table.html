@@ -50,9 +50,14 @@
 
                 </h3>
                 {% endif %}
-                <p class="post-meta">Permissions:
+                <p class="post-meta" style="margin-top: 20px;">Permissions:
                     {% if user["permissions"] != None %}{{user["permissions"]}}{% else %}Unconfirmed User{% endif %}
                 </p>
+                {% if user["pending_deletion"] == True %}
+                <p class="post-meta">
+                    Pending Deletion Request
+                </p>
+                {% endif %}
             </div>
             <hr>
             {% endfor %}

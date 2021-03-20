@@ -42,7 +42,7 @@ import string
 # ------------------ APPLICATION CONFIG BLOCK ------------------
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", 's9TIRvlsjBr79quz')
 ckeditor = CKEditor(app)
 Bootstrap(app)
 months = [(i, dt.date(2008, i, 1).strftime('%B')) for i in range(1, 13)]
@@ -50,11 +50,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 587
-app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
-app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
+app.config["MAIL_USERNAME"] = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD', 'eggpggxbfvykmtag')
 app.config['MAIL_USE_TLS'] = True
 app.config['JSON_SORT_KEYS'] = False
-EMAIL = os.environ.get('EMAIL')
+EMAIL = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager()
@@ -74,7 +74,7 @@ class User(UserMixin, db.Model):
     __tablename__ = 'users'
     __searchable__ = ['name']
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), unique=True)
+    email = db.Column(db.String(700), unique=True)
     confirmed_email = db.Column(db.Boolean(), default=False)
     join_date = db.Column(db.String(300), default='')
     password = db.Column(db.String(100))
@@ -84,9 +84,23 @@ class User(UserMixin, db.Model):
     posts = relationship("BlogPost", back_populates="author")
     comments = relationship("Comment", back_populates="author")
     api_key = relationship("ApiKey", back_populates="developer")
+    deletion_report = relationship('DeletionReport', back_populates='user')
 
 
 # ------------------ DATABASE CONFIG ------------------
+
+# ------ DELETION REPORT TABLE ------
+
+class DeletionReport(db.Model):
+    __tablename__ = 'deletion_reports'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = relationship("User", back_populates='deletion_report')
+    deletion_reason = db.Column(db.String(1200), default='')
+    deletion_explanation = db.Column(db.String(1200), default='')
+    approval_link = db.Column(db.String(1000), default='')
+    rejection_link = db.Column(db.String(1000), default='')
+    date = db.Column(db.String(250), default='')
 
 
 # ------ API KEY TABLE ------
@@ -198,6 +212,23 @@ def get_user_api(user_id):
     return None
 
 
+def get_deletion_report(user_id):
+    try:
+        requested_report = DeletionReport.query.filter_by(user_id=user_id).first()
+    except AttributeError:
+        return None
+    if requested_report is not None:
+        report_dict = {1: {"name": "Deletion Request Report",
+                           "description": "View Report",
+                           "Deletion Reason": requested_report.deletion_reason,
+                           "Additional Information": requested_report.deletion_explanation,
+                           "Submitted on": requested_report.date,
+                           "approval": requested_report.approval_link,
+                           "rejection": requested_report.rejection_link}}
+        return report_dict
+    return None
+
+
 def clean_posts():
     [db.session.delete(post) for post in DeletedPost.query.all()
      if User.query.filter_by(email=post.json_column["author_email"]).first() is None]
@@ -218,6 +249,11 @@ def clean_posts():
             key = api_key.developer.email
         except (AttributeError, TypeError):
             db.session.delete(api_key)
+    for deletion_report in DeletionReport.query.all():
+        try:
+            report = deletion_report.user.email
+        except (AttributeError, TypeError):
+            db.session.delete(deletion_report)
 
 
 def generate_date():  # GET THE CURRENT DATE IN A STRING FORMAT
@@ -247,6 +283,17 @@ def delete_notification(email, name, action_user, action_title, action_reason):
                f'Your account was deleted by {action_user} due to "{action_title}".\n\n' \
                f'Deletion reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
                f'If you believe that a mistake was made, contact us by replying to this email or via our website.'
+    mail.send(msg)
+
+
+def request_notification(email, name, decision):
+    msg = Message('Deletion Request', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
+    if decision:
+        msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+                   f" events that occurred in regards to your account.\n\n" \
+                   f"Your Deletion Request was {decision}.\n\n" \
+                   f"If you believe that a mistake was made, please contact us by replying to this email or via our" \
+                   f" website."
     mail.send(msg)
 
 
@@ -366,6 +413,13 @@ def get_data(homepage=False):  # GET CONFIG DATA
 
 
 def get_options(requested_page: int = 1, website=False):
+    def get_last(given_options: dict):
+        try:
+            use_id = list(given_options.keys())[-1] + 1
+        except IndexError:
+            use_id = 1
+        return use_id
+
     if website:
         if current_user.is_authenticated and current_user.admin is True:
             options_dict = {1: {"name": "Website Configuration",
@@ -390,13 +444,14 @@ def get_options(requested_page: int = 1, website=False):
         if current_user.is_authenticated:
             options_dict = {}
             if check_api(current_user.id) is False:
-                try:
-                    last_id = list(options_dict.keys())[-1] + 1
-                except IndexError:
-                    last_id = 1
-                options_dict[last_id] = {"name": "Generate API Key",
-                                         "desc": "Generate an API Key to use our API services.",
-                                         "func": "generate_key"}
+                options_dict[get_last(options_dict)] = {"name": "Generate API Key",
+                                                        "desc": "Generate an API Key to use our API services.",
+                                                        "func": "generate_key"}
+            if check_deletion(current_user.id) is False:
+                options_dict[get_last(options_dict)] = {"name": "Delete my Account",
+                                                        "desc": "Request account deletion",
+                                                        "func": "request_deletion"}
+
         else:
             return abort(401)
     result = requested_page * 3
@@ -448,6 +503,10 @@ def check_api(user_id):
     return ApiKey.query.filter_by(developer_id=user_id).first() is not None
 
 
+def check_deletion(user_id):
+    return DeletionReport.query.filter_by(user_id=user_id).first() is not None
+
+
 def validate_key(api_key):
     return any([key for key in ApiKey.query.all() if api_key == key.api_key])
 
@@ -461,6 +520,9 @@ def get_users_filter(view_filter=None):
         users = User.query.filter_by(confirmed_email=True).all()
     elif view_filter == 'unconfirmed':
         users = User.query.filter_by(confirmed_email=False).all()
+    elif view_filter == 'pending':
+        users = [user for user in User.query.all()
+                 if DeletionReport.query.filter_by(user_id=user.id).first() is not None]
     else:
         users = User.query.all()
     return users
@@ -472,8 +534,8 @@ def get_user_dict(users):
                                          "username": user.name,
                                          "posts_num":
                                              len(user.posts),
-                                         "is_developer": ApiKey.query.filter_by(developer_id=user.id).first()
-                                                         is not None,
+                                         "is_developer": check_api(user.id),
+                                         "pending_deletion": check_deletion(user.id),
                                          "permissions": [
                                              "Administrator" if user.admin is True else "Author" if user.author is True
                                              else "Developer" if check_api(user.id) else
@@ -727,6 +789,20 @@ class ApiGenerate(FlaskForm):
 # ------ END ------
 
 
+# ------ DELETION REQUEST FORM ------
+
+class DeletionRequest(FlaskForm):
+    reason = SelectField("Why are you deleting your account?", choices=[('Dissatisfied', 'Dissatisfied'),
+                                                                        ('Not Interested', 'Not Interested'),
+                                                                        ("Bad User Experience", "Bad User Experience"),
+                                                                        ('Other', 'Other')])
+    explanation = CKEditorField("Could you tell us more?")
+    submit = SubmitField("Delete my account", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
+
 # ------------------ END BLOCK ------------------
 
 
@@ -734,7 +810,7 @@ class ApiGenerate(FlaskForm):
 
 
 def logout_required(func):
-    """Checks whether user is logged in or raises error 401."""
+    """Checks whether user is logged out or raises error 401."""
 
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -778,7 +854,10 @@ def staff_only(func):
 
 @app.route('/')
 def home():
-    data = get_data(homepage=True)
+    try:
+        data = get_data(homepage=True)
+    except OperationalError:
+        db.create_all()
     return render_template("index.html", all_posts=get_posts()[:3], posts_count=len(get_posts()), current_id=1,
                            title=data[0], subtitle=data[1], name=get_name(),
                            background_image=get_background("website_configuration"))
@@ -846,7 +925,8 @@ def page(page_id):
                 if page_id == 1:
                     return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
                 if requested_api is not None:
-                    if current_user.email == ApiKey.query.get(user_id).developer.email or current_user.admin is True:
+                    if current_user.email == ApiKey.query.filter_by(developer_id=user_id).first().developer.email \
+                            or current_user.admin is True:
                         try:
                             return render_template("user.html", all_posts=requested_api[page_id],
                                                    current_id=page_id,
@@ -1550,13 +1630,13 @@ def user_page(user_id):
             return render_template("user.html", comments=comments[:3], posts_count=len(comments[:3]), current_id=1,
                                    title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Comments", name=get_name(),
                                    background_image=get_background('website_configuration'), current_mode='comments',
-                                   user=user, api_exists=check_api(user_id),
+                                   user=user, api_exists=check_api(user_id), report_exists=check_deletion(user_id),
                                    admin_count=admin_count)
         elif current_mode == 'posts' or current_mode is None:
             return render_template("user.html", all_posts=posts[:3], posts_count=len(posts[:3]), current_id=1,
                                    title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Posts", name=get_name(),
                                    background_image=get_background('website_configuration'), current_mode='posts',
-                                   user=user,
+                                   user=user, report_exists=check_deletion(user_id),
                                    admin_count=admin_count,
                                    api_exists=check_api(user_id))
         elif current_mode == 'api':
@@ -1570,7 +1650,7 @@ def user_page(user_id):
                                            name=get_name(),
                                            background_image=get_background('website_configuration'),
                                            current_mode='api',
-                                           user=user, posts_count=1,
+                                           user=user, posts_count=1, report_exists=check_deletion(user_id),
                                            admin_count=admin_count)
                 else:
                     flash("Could not find an API key with the specified ID.")
@@ -1580,6 +1660,23 @@ def user_page(user_id):
                     return abort(403)
                 else:
                     return abort(401)
+        elif current_mode == 'delete-report':
+            if current_user.is_authenticated and current_user.email == User.query.get(user_id).email \
+                    or current_user.admin is True:
+                requested_report = get_deletion_report(user_id)
+                if requested_report is not None:
+                    return render_template("user.html", all_posts=requested_report[1],
+                                           current_id=1,
+                                           title=f"{user.name}'s Profile", subtitle=f"{user.name}'s"
+                                                                                    f" Deletion Request Report",
+                                           name=get_name(),
+                                           background_image=get_background('website_configuration'),
+                                           current_mode='delete-report',
+                                           user=user, posts_count=1, api_exists=check_api(user_id),
+                                           admin_count=admin_count)
+                else:
+                    flash("Could not find a deletion report with the specified ID.")
+                    return redirect(url_for('home'))
         else:
             return abort(404)
     else:
@@ -1609,9 +1706,123 @@ def delete_user(user_id):
             return redirect(url_for('home'))
         return render_template('delete.html', form=form, user_id=user_id, name=get_name(), user_name=user.name,
                                background_image=get_background('website_configuration'))
+
     else:
         flash("This user does not exist.")
         return redirect(url_for('home'))
+
+
+# ------------------ DELETION REQUEST BLOCK ------------------
+
+@app.route('/finalize-deletion/<int:user_id>')
+@login_required
+def generate_deletion(user_id):
+    user = User.query.get(user_id)
+    if user is not None:
+        if current_user.is_authenticated and current_user.email == user.email:
+            if check_deletion(user_id) is True:
+                requested_report = DeletionReport.query.filter_by(user_id=user_id).first()
+                if requested_report.approval_link == '':
+                    token = serializer.dumps(user.email, salt='deletion_request')
+                    approval_link = url_for('handle_request', token=token, email=user.email, decision='approved',
+                                            _external=True)
+                    another_token = serializer.dumps(user.email, salt='deletion_request')
+                    rejection_link = url_for('handle_request', token=another_token, email=user.email,
+                                             decision='rejected', _external=True)
+                    try:
+                        requested_report.approval_link = approval_link
+                        requested_report.rejection_link = rejection_link
+                        requested_report.date = generate_date()
+                    except AttributeError:
+                        return abort(500)
+                    else:
+                        db.session.commit()
+                        flash("Request sent, please wait 1-3 days for administrators to review your request.")
+                        return redirect(url_for('home'))
+                else:
+                    flash("Your account is already in a pending deletion state.")
+                    return redirect(url_for('home'))
+            else:
+                return abort(500)
+        else:
+            return abort(403)
+    else:
+        flash("Could not find a user with the specified ID.")
+        return redirect(url_for('home'))
+
+
+@app.route('/request-deletion', methods=['GET', 'POST'])
+@login_required
+def request_deletion():
+    requested_user = User.query.filter_by(email=current_user.email).first()
+    form = DeletionRequest()
+    if requested_user is not None:
+        if current_user.is_authenticated and current_user.email == requested_user.email:
+            if form.validate_on_submit():
+                if get_admin_count() < 1:
+                    request_notification(email=requested_user.email, name=requested_user.name, decision="approved")
+                    if current_user == requested_user:
+                        logout_user()
+                    db.session.delete(requested_user)
+                    db.session.commit()
+                    flash("Your account has been successfully deleted.")
+                    return redirect(url_for('home'))
+                else:
+                    explanation = form.explanation.data if any(form.explanation.data)\
+                        else "No additional info provided."
+                    new_report = DeletionReport(deletion_reason=form.reason.data,
+                                                deletion_explanation=html2text(explanation), user=current_user)
+                    db.session.add(new_report)
+                    db.session.commit()
+                    return redirect(url_for('generate_deletion', user_id=current_user.id))
+            return render_template('config.html', config_title="Account Deletion Request",
+                                   config_desc="Request to delete your account.",
+                                   form=form, config_func="request_deletion", name=get_name(),
+                                   background_image=get_background('website_configuration'))
+    else:
+        flash("Could not find a user with the specified ID.")
+        return redirect(url_for('home'))
+
+
+@app.route('/handle-request/<token>')
+@admin_only
+def handle_request(token):
+    email = request.args.get('email')
+    decision = request.args.get('decision')
+    try:
+        confirmation = serializer.loads(token, salt='deletion_request', max_age=259200)
+    except SignatureExpired:
+        flash("The token is expired, please try again.")
+        return redirect(url_for('home'))
+    except BadTimeSignature:
+        flash("Incorrect token, please try again.")
+        return redirect(url_for('home'))
+    else:
+        requested_user = User.query.filter_by(email=email).first()
+        if requested_user is not None:
+            if decision == 'approved':
+                request_notification(email=requested_user.email, name=requested_user.name, decision="approved")
+                if current_user == requested_user:
+                    logout_user()
+                flash("Deletion requested approved, a notification has been sent to the user.")
+                db.session.delete(requested_user)
+                clean_posts()
+                db.session.commit()
+                return redirect(url_for('home'))
+            else:
+                request_notification(email=requested_user.email, name=requested_user.name, decision="rejected")
+                flash("Deletion request rejected, a notification has been sent to the user.")
+                requested_report = DeletionReport.query.filter_by(user=requested_user).first()
+                if requested_report is not None:
+                    db.session.delete(requested_report)
+                db.session.commit()
+                return redirect(url_for('home'))
+        else:
+            flash("Could not find a user with the specified ID.")
+            return redirect(url_for('home'))
+
+
+# ------------------ END BLOCK ------------------
 
 
 @app.route('/auth', methods=['GET', 'POST'])
@@ -1741,11 +1952,14 @@ def verify_email(token):
     else:
         user = User.query.filter_by(email=email).first()
         if user is not None:
-            user.confirmed_email = True
-            user.join_date = generate_date()
-            db.session.commit()
-            login_user(user)
-            flash("You've confirmed your email successfully.")
+            if user.confirmed_email is False:
+                user.confirmed_email = True
+                user.join_date = generate_date()
+                db.session.commit()
+                login_user(user)
+                flash("You've confirmed your email successfully.")
+            else:
+                flash("You've already confirmed your email.")
             return redirect(url_for('home'))
         else:
             flash("This user does not exist.")
