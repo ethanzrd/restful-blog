@@ -1677,7 +1677,7 @@ def authentication_configuration():
                     new_data = {"secret_password": new_password}
                     data.update(new_data)
                     update_data(data)
-                    return redirect(url_for('settings'))
+                    return redirect(url_for('settings', mode='admin'))
                 else:
                     flash("Incorrect authentication password.")
             except TypeError:
