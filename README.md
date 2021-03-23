@@ -1,5 +1,5 @@
 # restful-blog
-![restful-blog](https://socialify.git.ci/ethanzrd/restful-blog/image?description=1&font=Bitter&language=1&owner=1&pattern=Charlie%20Brown&theme=Light)
+![restful-blog](https://socialify.git.ci/ethanzrd/restful-blog/image?description=1&font=Bitter&language=1&owner=1&theme=Dark)
 
 
 Features:
