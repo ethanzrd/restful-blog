@@ -13,7 +13,7 @@
             <div class="col-lg-8 col-md-10 mx-auto">
                 <div class="page-heading">
                     <h1 style="color: {{navbar}}">Log In</h1>
-                    <span style="color: {{navbar}}" class="subheading">Welcome Back!</span>
+                    <span class="subheading" style="color: {{navbar}}">Welcome Back!</span>
                 </div>
             </div>
         </div>
@@ -28,16 +28,33 @@
             <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
                 <center>
                     {% if message != 'unconfirmed' %}
-                    <strong>{{ message }}</strong>
+                    {% if message == 'Incorrect password, please try again.' %}
+                    <strong>{{message}} <a href="{{ url_for('verify_forget') }}">Forgot your password?</a></strong>
                     {% else %}
-                    <strong>This user is not confirmed. <a href="{{ url_for('validate', email=email, name=user_name) }}">Click here</a> to confirm.</strong>
+                    <strong>{{ message }}</strong>
+                    {% endif %}
+                    {% else %}
+                    <strong>This user is not confirmed. <a
+                            href="{{ url_for('validate', email=email, name=user_name) }}">Click here</a> to
+                        confirm.</strong>
                     {% endif %}
                 </center>
             </div>
             {% endfor %}
             {% endwith %}
-            <p style="color: black;">New to the website? <a href="{{ url_for('register') }}">Click here</a> to register!</p>
+            {% if forget != True and handling != True %}
+            <p style="color: black;">New to the website? <a href="{{ url_for('register') }}">Click here</a> to register!
+            </p>
             {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+            {% else %}
+            {% if handling != True %}
+            <form action="{{ url_for('forget_password', token=token, email=email) }}" method="post" novalidate>
+                {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+                {% else %}
+                <form action="{{ url_for('verify_forget') }}" method="post" novalidate>
+                    {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+                    {% endif %}
+                    {% endif %}
         </div>
     </div>
 </div>

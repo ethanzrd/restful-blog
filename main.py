@@ -379,6 +379,15 @@ def contact_notification(email, name, action_reason):
     mail.send(msg)
 
 
+def password_notification(email, name, date):
+    msg = Message(f'Password Changed', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
+    msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+               f" events that occurred in regards to your account.\n\n" \
+               f'Your account password was changed at {date}.\n\n' \
+               f"If this wasn't you, contact us by replying to this email or via our website."
+    mail.send(msg)
+
+
 def admin_redirect():
     if current_user.is_authenticated is False or current_user.admin is False:
         return abort(403)
@@ -671,6 +680,25 @@ class CreatePostForm(FlaskForm):
     img_url = StringField("Post Image URL")
     body = CKEditorField("Post Content", validators=[DataRequired()])
     submit = SubmitField("Submit", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
+# ------ FORGET PASSWORD FORM ------
+
+class ForgetPasswordForm(FlaskForm):
+    new_password = PasswordField("Enter your new password:", validators=[DataRequired()])
+    submit = SubmitField("Submit", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
+
+# ------ FORGET PASSWORD HANDLING FORM ------
+
+class ForgetHandlingForm(FlaskForm):
+    email = StringField("Enter your email address:", validators=[DataRequired(), Email()])
+    submit = SubmitField("Proceed", render_kw={"style": "margin-top: 20px;"})
 
 
 # ------ END ------
@@ -2148,6 +2176,60 @@ def verify_user(email, name):
     mail.send(msg)
     flash("A confirmation email has been sent to you.")
     return redirect(url_for('home'))
+
+
+@app.route('/verify-forget', methods=['GET', 'POST'])
+def verify_forget():
+    form = ForgetHandlingForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        user = User.query.filter_by(email=email).first()
+        name = user.name
+        if user is not None:
+            token = serializer.dumps(email, salt='forget-password')
+            msg = Message('Forget Password', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
+            link = url_for('forget_password', token=token, email=email, _external=True)
+            msg.body = f"Hello {name}, you have recently requested a password change," \
+                       f"please go to this link to reset your password.\n\n{link}\n\n" \
+                       f"If this wasn't you, please contact us by replying to this email or via our website."
+            mail.send(msg)
+            flash("A password reset email has been sent to you.")
+            return redirect(url_for('home'))
+        else:
+            flash("Could not find a user with the specified email address.")
+    else:
+        return render_template('login.html', form=form, handling=True, name=get_name(),
+                               background_image=get_background('website_configuration'), navbar=get_navbar())
+
+
+@app.route('/forget-password/<token>', methods=['GET', 'POST'])
+def forget_password(token):
+    email = request.args.get('email')
+    form = ForgetPasswordForm()
+    try:
+        confirmation = serializer.loads(token, salt='forget-password', max_age=800)
+    except SignatureExpired:
+        flash("The token is expired, please try again.")
+        return redirect(url_for('register'))
+    except BadTimeSignature:
+        flash("Incorrect token, please try again.")
+        return redirect(url_for('register'))
+    else:
+        user = User.query.filter_by(email=email).first()
+        if user is not None:
+            if form.validate_on_submit():
+                new_password = generate_password_hash(password=form.new_password.data,
+                                                      method='pbkdf2:sha256', salt_length=8)
+                user.password = new_password
+                db.session.commit()
+                password_notification(user.email, user.name, generate_date())
+                flash("Password changed successfully.")
+                return redirect(url_for('login'))
+            return render_template('login.html', forget=True, token=token, name=get_name(), form=form, email=email,
+                                   background_image=get_background('website_configuration'), navbar=get_navbar())
+        else:
+            flash("Could not find a user with the specified email address.")
+            return redirect(url_for('home'))
 
 
 @login_manager.user_loader
