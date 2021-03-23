@@ -86,7 +86,7 @@
             {% if posts_count != 0 %}
             {% for comment in comments %}
             <div class="post-preview">
-                <a href="{{ url_for('show_post', post_id=comment.post_id) }}">
+                <a href="{{ url_for('show_comment', comment_id=comment.id) }}">
                     <h2 class="post-title">
                         Commented on "{{comment.parent_post.title}}"
                     </h2>

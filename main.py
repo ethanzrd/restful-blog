@@ -18,7 +18,6 @@ from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from sqlalchemy.orm import relationship
-import pyperclip
 from wtforms import StringField, SubmitField, PasswordField, SelectField
 from wtforms.validators import DataRequired, URL, Email
 from flask_ckeditor import CKEditor, CKEditorField
@@ -42,7 +41,7 @@ import string
 # ------------------ APPLICATION CONFIG BLOCK ------------------
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", 's9TIRvlsjBr79quz')
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 ckeditor = CKEditor(app)
 Bootstrap(app)
 months = [(i, dt.date(2008, i, 1).strftime('%B')) for i in range(1, 13)]
@@ -50,11 +49,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 587
-app.config["MAIL_USERNAME"] = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD', 'eggpggxbfvykmtag')
+app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
+app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
 app.config['MAIL_USE_TLS'] = True
 app.config['JSON_SORT_KEYS'] = False
-EMAIL = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
+EMAIL = os.environ.get('EMAIL')
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager()
@@ -83,6 +82,7 @@ class User(UserMixin, db.Model):
     author = db.Column(db.Boolean(), default=False)
     posts = relationship("BlogPost", back_populates="author")
     comments = relationship("Comment", back_populates="author")
+    replies = relationship("Reply", back_populates="author")
     api_key = relationship("ApiKey", back_populates="developer")
     deletion_report = relationship('DeletionReport', back_populates='user')
 
@@ -148,7 +148,23 @@ class Comment(db.Model):
     author = relationship("User", back_populates="comments")
     post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"))
     parent_post = relationship("BlogPost", back_populates='comments')
+    replies = relationship("Reply", back_populates='parent_comment')
     comment = db.Column(db.Text, nullable=False)
+    date = db.Column(db.String(250), nullable=False)
+
+
+# ------ END ------
+
+# ------ REPLIES TABLE ------
+
+class Reply(db.Model):
+    __tablename__ = 'replies'
+    id = db.Column(db.Integer, primary_key=True)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    author = relationship("User", back_populates="replies")
+    comment_id = db.Column(db.Integer, db.ForeignKey("comments.id"))
+    parent_comment = relationship("Comment", back_populates='replies')
+    reply = db.Column(db.Text, nullable=False)
     date = db.Column(db.String(250), nullable=False)
 
 
@@ -229,6 +245,16 @@ def get_deletion_report(user_id):
     return None
 
 
+def get_comment(comment_id):
+    try:
+        comment = Comment.query.get(comment_id)
+    except AttributeError:
+        return None
+    if comment is not None:
+        return comment
+    return None
+
+
 def clean_posts():
     [db.session.delete(post) for post in DeletedPost.query.all()
      if User.query.filter_by(email=post.json_column["author_email"]).first() is None]
@@ -254,6 +280,11 @@ def clean_posts():
             report = deletion_report.user.email
         except (AttributeError, TypeError):
             db.session.delete(deletion_report)
+    for reply_item in Reply.query.all():
+        try:
+            reply = reply_item.parent_comment.post_id
+        except (AttributeError, TypeError):
+            db.session.delete(reply_item)
 
 
 def generate_date():  # GET THE CURRENT DATE IN A STRING FORMAT
@@ -696,6 +727,33 @@ class CommentForm(FlaskForm):
 
 # ------ END ------
 
+# ------ EDIT COMMENT FORM ------
+
+class EditCommentForm(FlaskForm):
+    comment = CKEditorField("Edit Comment", validators=[DataRequired()])
+    submit = SubmitField("Save Changes", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
+# ------ EDIT REPLY FORM ------
+
+class EditReplyForm(FlaskForm):
+    reply = CKEditorField("Edit Reply", validators=[DataRequired()])
+    submit = SubmitField("Save Changes", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
+# ------ REPLY FORM ------
+
+class ReplyForm(FlaskForm):
+    reply = CKEditorField("Reply", validators=[DataRequired()])
+    submit = SubmitField("Submit Reply", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
 
 # ------ SEARCH FORM ------
 
@@ -839,7 +897,7 @@ def staff_only(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if current_user.is_authenticated is False:
-            abort(403)
+            abort(401)
         if current_user.admin is False and current_user.author is False:
             abort(403)
         return func(*args, **kwargs)
@@ -1104,8 +1162,11 @@ def show_post(post_id):
     comment_page = request.args.get('c_page')
     form = CommentForm()
     if deleted is None:
-        requested_post = BlogPost.query.get(post_id)
-        post_comments = BlogPost.query.get(post_id).comments
+        try:
+            requested_post = BlogPost.query.get(post_id)
+            post_comments = BlogPost.query.get(post_id).comments
+        except AttributeError:
+            return abort(404)
     else:
         try:
             requested_post = (DeletedPost.query.get(post_id).id, DeletedPost.query.get(post_id).json_column)
@@ -1148,8 +1209,140 @@ def show_post(post_id):
         else:
             flash("User is not logged in.")
             return redirect(url_for('show_post', post_id=post_id))
-    return render_template("post.html", post=requested_post, deleted=str(deleted),
+    return render_template("post.html", post=requested_post, deleted=str(deleted), post_id=post_id,
                            name=get_name(), form=form, comments=comment_items, current_c=int(current_c), c_count=count)
+
+
+@app.route('/comment/<int:comment_id>', methods=['GET', 'POST'])
+def show_comment(comment_id):
+    form = ReplyForm()
+    reply_page = request.args.get('c_page')
+    deleted = request.args.get('deleted')
+    post_id = request.args.get('post_id')
+    if deleted is not None:
+        if post_id is not None:
+            try:
+                requested_post = (DeletedPost.query.get(post_id).id, DeletedPost.query.get(post_id).json_column)
+                requested_comment = [comment for comment in requested_post[1]["comments"]
+                                     if comment['comment_id'] == comment_id][0]
+                replies = requested_comment["replies"]
+                original_comment = requested_comment
+                parent_post = requested_post
+            except (AttributeError, IndexError, KeyError):
+                return abort(404)
+        else:
+            flash("Malformed Page Request - Post ID was not provided.")
+            return redirect(url_for('home'))
+    else:
+        try:
+            requested_comment = get_comment(comment_id)
+            replies = requested_comment.replies
+            original_comment = requested_comment
+            parent_post = requested_comment.parent_post
+        except AttributeError:
+            return abort(404)
+    if reply_page is not None:
+        current_c = reply_page
+        if reply_page == 1:
+            return redirect(url_for('show_comment', comment_id=comment_id))
+        try:
+            result = int(reply_page) * 3
+        except TypeError:
+            return redirect(url_for('show_comment', comment_id=comment_id))
+        reply_items = replies[result - 3:result]
+    else:
+        current_c = 1
+        reply_items = replies[:3]
+    if form.validate_on_submit():
+        if current_user.is_authenticated:
+            new_reply = Reply(author=current_user,
+                              parent_comment=requested_comment,
+                              reply=html2text(form.reply.data),
+                              date=generate_date())
+            db.session.add(new_reply)
+            db.session.commit()
+            return redirect(url_for('show_comment', comment_id=requested_comment.id, c_page=current_c))
+        else:
+            flash("User is not logged in.")
+            return redirect(url_for('show_comment', comment_id=requested_comment.id))
+    return render_template("post.html", c_count=len(reply_items), current_c=int(current_c), name=get_name(),
+                           comment=True, original_comment=original_comment,
+                           post=parent_post, comments=[requested_comment],
+                           form=form, replies=reply_items, deleted=str(deleted), post_id=post_id)
+
+
+@app.route('/edit-comment/<int:comment_id>', methods=['GET', 'POST'])
+def edit_comment(comment_id):
+    comment = Comment.query.get(comment_id)
+    if comment is not None:
+        if current_user.is_authenticated:
+            if comment.author.email == current_user.email:
+                form = EditCommentForm(comment=comment.comment)
+                if form.validate_on_submit():
+                    comment.comment = form.comment.data
+                    db.session.commit()
+                    return redirect(url_for('show_comment', comment_id=comment_id))
+                return render_template('config.html', config_title="Edit Your Comment",
+                                       config_desc="Here, you'll be able to edit your comments.", form=form,
+                                       config_func="edit_comment", name=get_name(),
+                                       background_image=get_background('website_configuration'), comment_id=comment_id)
+            else:
+                return abort(403)
+        else:
+            return abort(401)
+    else:
+        flash("Could not find a comment with the specified ID.")
+        return redirect(url_for('home'))
+
+
+@app.route('/delete-reply/<int:reply_id>')
+def delete_reply(reply_id):
+    reply = Reply.query.get(reply_id)
+    current_c = request.args.get('c_page')
+    if current_c is None:
+        current_c = 1
+    if reply is not None:
+        if current_user.is_authenticated:
+            if reply.parent_comment.parent_post.author.email == current_user.email \
+                    or current_user.email == reply.author.email:
+                db.session.delete(reply)
+                db.session.commit()
+                return redirect(url_for('show_comment', comment_id=reply.comment_id, c_page=current_c))
+            else:
+                return abort(403)
+        else:
+            return abort(401)
+    else:
+        flash("Could not find a reply with the specified ID.")
+        return redirect(url_for('home'))
+
+
+@app.route('/edit-reply/<int:reply_id>', methods=['GET', 'POST'])
+def edit_reply(reply_id):
+    reply = Reply.query.get(reply_id)
+    current_c = request.args.get('c_page')
+    if current_c is None:
+        current_c = 1
+    if reply is not None:
+        if current_user.is_authenticated:
+            if reply.author.email == current_user.email:
+                form = EditReplyForm(reply=reply.reply)
+                if form.validate_on_submit():
+                    reply.reply = html2text(form.reply.data)
+                    db.session.commit()
+                    return redirect(url_for('show_comment', comment_id=reply.comment_id, c_page=current_c))
+                return render_template('config.html', config_title="Edit Your Reply",
+                                       config_desc="Here, you'll be able to edit your replies.", form=form,
+                                       config_func="edit_reply", name=get_name(),
+                                       background_image=get_background('website_configuration'), reply_id=reply_id,
+                                       c_page=current_c)
+            else:
+                return abort(403)
+        else:
+            return abort(401)
+    else:
+        flash("Could not find a reply with the specified ID.")
+        return redirect(url_for('home'))
 
 
 @app.route('/edit/<int:post_id>', methods=['GET', 'POST'])
@@ -1157,21 +1350,24 @@ def show_post(post_id):
 def edit_post(post_id):
     post = BlogPost.query.get(post_id)
     if post is not None:
-        if post.author.email == current_user.email:
-            form = CreatePostForm(title=post.title,
-                                  subtitle=post.subtitle,
-                                  img_url=post.img_url,
-                                  body=post.body)
-            if form.validate_on_submit():
-                post.title = form.title.data
-                post.subtitle = form.subtitle.data
-                post.img_url = form.img_url.data
-                post.body = form.body.data
-                db.session.commit()
-                return redirect(url_for('show_post', post_id=post_id))
-            return render_template('make-post.html', edit=True, post=post, form=form, name=get_name())
+        if current_user.is_authenticated:
+            if post.author.email == current_user.email:
+                form = CreatePostForm(title=post.title,
+                                      subtitle=post.subtitle,
+                                      img_url=post.img_url,
+                                      body=post.body)
+                if form.validate_on_submit():
+                    post.title = form.title.data
+                    post.subtitle = form.subtitle.data
+                    post.img_url = form.img_url.data
+                    post.body = form.body.data
+                    db.session.commit()
+                    return redirect(url_for('show_post', post_id=post_id))
+                return render_template('make-post.html', edit=True, post=post, form=form, name=get_name())
+            else:
+                return abort(403)
         else:
-            return abort(403)
+            return abort(401)
     else:
         flash("Could not find a post with the specified ID.")
         return redirect(url_for('home'))
@@ -1231,11 +1427,20 @@ def delete_post(post_id):
                 "comments": [{"author_id": comment.author_id, "author": comment.author.name,
                               "author_email": comment.author.email, "post_id": comment.post_id,
                               "comment": comment.comment,
-                              "date": comment.date} for comment in lst]
+                              "comment_id": comment.id,
+                              "date": comment.date, "replies": [
+                        {"author_id": reply.author_id, "author_email": reply.author.email, "author": reply.author.name,
+                         "comment_id": reply.comment_id, "reply": reply.reply, "date": reply.date}
+                        for reply in comment.replies]} for comment in lst]
             }
             new_deleted = DeletedPost(json_column=new_post)
             db.session.add(new_deleted)
             [db.session.delete(comment) for comment in lst]
+            for reply_item in Reply.query.all():
+                try:
+                    reply = reply_item.parent_comment.post_id
+                except (AttributeError, TypeError):
+                    db.session.delete(reply_item)
             db.session.delete(post)
             db.session.commit()
             return redirect(url_for('home'))
@@ -1270,10 +1475,15 @@ def recover_post(post_id):
                         img_url=post["img_url"],
                         )
     db.session.add(new_post)
-    [db.session.add(Comment(author=User.query.filter_by(email=comment["author_email"]).first(),
-                            post_id=new_post.id,
-                            parent_post=new_post,
-                            comment=comment["comment"], date=comment["date"])) for comment in comments]
+    for comment in comments:
+        new_comment = Comment(author=User.query.filter_by(email=comment["author_email"]).first(),
+                              parent_post=new_post,
+                              comment=comment["comment"], date=comment["date"])
+        db.session.add(new_comment)
+        for reply in comment["replies"]:
+            new_reply = Reply(author=User.query.filter_by(email=reply["author_email"]).first(),
+                              parent_comment=new_comment, reply=reply["reply"], date=reply['date'])
+            db.session.add(new_reply)
     db.session.delete(actual)
     db.session.commit()
     return redirect(url_for('home'))
@@ -1305,13 +1515,18 @@ def perm_delete(post_id):
 def delete_comment(comment_id):
     comment = Comment.query.get(comment_id)
     if comment is not None:
-        if comment.parent_post.author.email == current_user.email or current_user.email == comment.author.email:
-            current_post = comment.post_id
-            db.session.delete(comment)
-            db.session.commit()
-            return redirect(url_for('show_post', post_id=current_post))
+        if current_user.is_authenticated:
+            if comment.parent_post.author.email == current_user.email or current_user.email == comment.author.email:
+                current_post = comment.post_id
+                replies = Reply.query.filter_by(parent_comment=comment).all()
+                [db.session.delete(reply) for reply in replies]
+                db.session.delete(comment)
+                db.session.commit()
+                return redirect(url_for('show_post', post_id=current_post))
+            else:
+                return abort(403)
         else:
-            return abort(403)
+            return abort(401)
     else:
         flash("Could not find a comment with the specified ID.")
         return redirect(url_for('home'))
@@ -1768,7 +1983,7 @@ def request_deletion():
                     flash("Your account has been successfully deleted.")
                     return redirect(url_for('home'))
                 else:
-                    explanation = form.explanation.data if any(form.explanation.data)\
+                    explanation = form.explanation.data if any(form.explanation.data) \
                         else "No additional info provided."
                     new_report = DeletionReport(deletion_reason=form.reason.data,
                                                 deletion_explanation=html2text(explanation), user=current_user)
@@ -2155,6 +2370,18 @@ def api_all_users():
 #     else:
 #         abort(403)
 
+
+# ------------------ END BLOCK ------------------
+
+# ------------------ MISC BLOCK ------------------
+
+# [db.session.add(Comment(author=User.query.filter_by(email=comment["author_email"]).first(),
+#                         post_id=new_post.id,
+#                         parent_post=new_post,
+#                         comment=comment["comment"], date=comment["date"])) for comment in comments]
+#                         post_id=new_post.id,
+#                         parent_post=new_post,
+#                         comment=comment["comment"], date=comment["date"])) for comment in comments]
 
 # ------------------ END BLOCK ------------------
 
