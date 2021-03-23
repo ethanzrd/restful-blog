@@ -28,6 +28,12 @@ Features:
 
 - API & Developer Account: An account that generated an API key will automatically become a Developer Account, Developer Accounts will have a new section in their profiles called "View API Information" which will allow them to view their key details, and request statistics. This section will be allowed to be seen by the user and by administrators only. This is just the beginning, on-site documentation and more control over the API system are soon to come.
 
+- Account deletion - The user can request an account deletion, which will be overseen by administrators with the option to accept or reject the request, the user will be notified once a decision has been made by one of the administrators.
+
+- Reply System: Users can now reply to other user's comments, edit their replies, and replies can be deleted by the post author, an administrator, and the user who wrote the reply. Replies can also be recovered along with posts.
+
+- Edit Comments: Users now can edit their comments via the comment page.
+
 Plans:
 
 - More control over the API system.
