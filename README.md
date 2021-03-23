@@ -30,6 +30,10 @@ Features:
 
 - Account deletion - The user can request an account deletion, which will be overseen by administrators with the option to accept or reject the request, the user will be notified once a decision has been made by one of the administrators.
 
+- Reply System: Users can now reply to other user's comments, edit their replies, and replies can be deleted by the post author, an administrator, and the user who wrote the reply. Replies can also be recovered along with posts.
+
+- Edit Comments: Users now can edit their comments via the comment page.
+
 Plans:
 
 - More control over the API system.
