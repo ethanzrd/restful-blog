@@ -15,29 +15,49 @@
                 <div class="col-lg-8 col-md-10 mx-auto">
                     {% if deleted != "True" %}
                     <div class="post-heading">
-                        <h1>{{post.title}}</h1>
-                        <h2 class="subheading">{{post.subtitle}}</h2>
-                        <span class="meta">Posted by
-                <a href="{{ url_for('user_page', user_id=post.author.id) }}">{{post.author.name}}</a>
-                on {{post.date}}{% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and post.author.email == current_user.email %}<br><br>
-                                        <a href="{{url_for('edit_post', post_id=post.id)}}">Edit
-                        Post</a>&emsp;<a href="{{url_for('delete_post', post_id=post.id)}}">Delete
-                        Post</a>{% endif %}</span>
+                        <h1>{% if comment != True %}{{post.title}}{% else %}{{original_comment.author.name}}'s Comment{%
+                            endif %}</h1>
+                        <h2 class="subheading">{% if comment != True %}{{post.subtitle}}{% else %}Viewing
+                            {{original_comment.author.name}}'s Comment on {{original_comment.parent_post.title}}{% endif
+                            %}</h2>
+                        <span class="meta">{% if comment != True %}Posted{% else %}Commented{% endif %} by
+                <a href="{{ url_for('user_page', user_id=post.author.id) }}">{% if comment != True %}{{post.author.name}}{% else %}{{original_comment.author.name}}{% endif %}</a>
+                on {% if comment != True %}{{post.date}}{% else %}{{original_comment.date}}{% endif %}{% if comment == True %}<br><br><a
+                                    href="{{ url_for('show_post', post_id=post.id) }}"
+                                    style="margin-top: 10px; text-decoration: none;">Back To Post</a>{% endif %}<br><br>{% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and post.author.email == current_user.email %}
+                                        {% if comment != True %}<a href="{{url_for('edit_post', post_id=post.id)}}"
+                                                                   style="text-decoration: none;">Edit
+                        Post</a>&emsp;<a href="{{url_for('delete_post', post_id=post.id)}}"
+                                         style="text-decoration: none;">Delete
+                        Post</a>{% endif %}{% endif %}
+                            {% if comment == True %}
+                            {% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and post.author.email == current_user.email or current_user.is_authenticated and original_comment.author.email == current_user.email %}
+                            <a href="{{ url_for('delete_comment', comment_id=original_comment.id) }}"
+                               style="margin-top: 10px; text-decoration: none;">Delete Comment</a>&emsp;<a
+                                    href="{{ url_for('edit_comment', comment_id=original_comment.id) }}"
+                                    style="margin-top: 10px; text-decoration: none;">Edit Comment</a></span>
+                        {% endif %}
+                        {% endif %}
                         {% else %}
                         <div class="post-heading">
-                            <h1>{{post[1]["post_title"]}}</h1>
-                            <h2 class="subheading">{{post[1]["subtitle"]}}</h2>
-                            <span class="meta">Posted by
-              <a href="{{ url_for('user_page', user_id=post[1]['author_id']) }}">{{post[1]["author"]}}</a>
-              on {{post[1]["date"]}}{% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and current_user.email == post[1]["author_email"] %}<br><br>
+                            <h1>{% if comment != True %}{{post[1]["post_title"]}}{% else
+                                %}{{original_comment["author"]}}'s Comment{% endif %}</h1>
+                            <h2 class="subheading">{% if comment != True %}{{post[1]["subtitle"]}}{% else %}Viewing
+                                {{original_comment["author"]}}'s Comment on {{post[1]["post_title"]}}{% endif %}</h2>
+                            <span class="meta">{% if comment != True %}Posted{% else %}Commented{% endif %} by
+              <a href="{{ url_for('user_page', user_id=post[1]['author_id']) }}">{% if comment != True %}{{post[1]["author"]}}{% else %}{{original_comment["author"]}}{% endif %}</a>
+              on {% if comment != True %}{{post[1]["date"]}}{% else %}{{post[1]["post_title"]}}{% endif %}{% if comment != True and current_user.is_authenticated and current_user.admin == True or comment != True and current_user.is_authenticated and current_user.author == True and current_user.email == post[1]["author_email"] %}<br><br>
                         <a href="{{ url_for('recover_post', post_id=post[0]) }}">Recover Post</a>{% endif %}
-                        {% if current_user.is_authenticated and current_user.admin == True %}<br><br><a
-                                        href="{{ url_for('perm_delete', post_id=post[0]) }}">Permanently Delete Post</a>{% endif %}</span>
+                        {% if comment != True and current_user.is_authenticated and current_user.admin == True %}<br><br><a
+                                        href="{{ url_for('perm_delete', post_id=post[0]) }}">Permanently Delete Post</a>{% endif %}{% if comment == True %}<br><br><a
+                                        href="{{ url_for('show_post', post_id=post[0], deleted='True') }}"
+                                        style="margin-top: 10px; text-decoration: none;">Back To Post</a>{% endif %}</span>
                         </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
+        </div>
     </header>
 
     <!-- Post Content -->
@@ -54,15 +74,20 @@
                     </div>
                     {% endfor %}
                     {% endwith %}
+                    {{ ckeditor.load() }}
                     {% if deleted != 'True' %}
+                    {% if comment != True %}
                     {{ post.body|safe }}
+                    {% endif %}
                     {% else %}
+                    {% if comment != True %}
                     {{ post[1]['body']|safe }}
                     {% endif %}
+                    {% endif %}
                     {% set horizontal = False %}
+                    {% if comment != True %}
                     {% if deleted != "True" and current_user.is_authenticated %}
                     <hr style="margin: 50px 0 50px 0;">
-                    {{ ckeditor.load() }}
                     <span style="line-height: 4rem;">
                 {{ wtf.quick_form(form, button_map={"submit": "primary"}) }}
                 </span>
@@ -76,74 +101,168 @@
                     {% if horizontal == False %}
                     <hr style="margin: 50px 0 20px 0;">
                     {% endif %}
+                    {% endif %}
 
                     <!--           Comments Area -->
-                    {% if c_count != 0 %}
                     {% if deleted != "True" %}
-                    {% for comment in comments %}
+                    {% for comment_item in comments %}
                     <ul class="commentList" style="margin-bottom: 20px; list-style-type: none;">
                         <li>
                             <div class="commenterImage">
-                                <img src="{{ comment.author.email | gravatar }}" style="border-radius: 100px;"/>
+                                <img src="{{ comment_item.author.email | gravatar }}" style="border-radius: 100px;"/>
                             </div>
                             <div>
 
-                            <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;">{{ comment.author.name }} | {{ comment.date }} {% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and post.author.email == current_user.email or current_user.is_authenticated and comment.author.email == current_user.email %}<a
-                                    href="{{ url_for('delete_comment', comment_id=comment.id) }}"
-                                    style="font-size: 15px; margin-top: 10px; text-decoration: none;">| Delete Comment</a></span>{%
-                                endif %}
-                                <span style="margin-left: 20px;">{{ comment.comment.strip()|safe() }}</span>
+                                <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;"><a
+                                        href="{{ url_for('user_page', user_id=comment_item.author_id) }}"
+                                        style="text-decoration: none;">{{ comment_item.author.name }}</a> {% if comment != True %}<a
+                                        href="{{ url_for('show_comment', comment_id=comment_item.id) }}"
+                                        style="font-size: 15px; margin-top: 10px; text-decoration: none;">{% if comment_item.replies %}{% if comment_item.replies|length == 1 %}| View Reply{% else %}| View Replies ({{comment_item.replies|length}}){% endif %}{% else %}| View Comment{% endif %}</a>{% endif %}
+                                    {% if comment == True and comment_item == original_comment %} | Original Comment{% endif %}</span>
+                                <span style="margin-left: 20px;">{{ comment_item.comment.strip()|safe() }}</span>
                             </div>
                             <hr style="margin: 5px 0 0 0;">
                         </li>
                     </ul>
                     {% endfor %}
-                    {% else %}
-                    <hr style="margin: 50px 0 20px 0;">
-                    {% for comment in comments %}
+                    {% if comment == True and deleted != True %}
+                    <span style="line-height: 4rem;">
+                 {% if not current_user.is_authenticated and comment == True and current_c == 1 %}
+                        <p><a href="{{ url_for('login') }}" style="text-decoration: none;">Log in</a> to reply.</p>
+                        {% else %}
+                {{ wtf.quick_form(form, button_map={"submit": "primary"}) }}
+                        {% endif %}
+                </span>
+                    <hr style="margin: 35px 0 20px 0;">
+                    {% for reply in replies %}
                     <ul class="commentList" style="margin-bottom: 20px; list-style-type: none;">
                         <li>
                             <div class="commenterImage">
-                                <img src="{{ comment['author_email'] | gravatar }}" style="border-radius: 100px;"/>
+                                <img src="{{ reply.author.email | gravatar }}" style="border-radius: 100px;"/>
                             </div>
                             <div>
-                            <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;">{{ comment["author"] }} | {{ comment["date"] }}
-                            <span style="margin-left: 20px;">{{ comment["comment"]|safe() }}</span>
+
+                                <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;"><a
+                                        href="{{ url_for('user_page', user_id=reply.author_id) }}"
+                                        style="text-decoration: none;">{{ reply.author.name }}</a> | {{ reply.date }} {% if current_user.is_authenticated and reply.author.email == current_user.email %}<a
+                                        href="{{ url_for('edit_reply', reply_id=reply.id, c_page=current_c) }}"
+                                        style="font-size: 15px; margin-top: 10px; text-decoration: none;"> | Edit Reply</a>{% endif %}{% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and reply.parent_comment.parent_post.author.email == current_user.email or current_user.is_authenticated and reply.author.email == current_user.email %}<a
+                                        href="{{ url_for('delete_reply', reply_id=reply.id, c_page=current_c) }}"
+                                        style="font-size: 15px; margin-top: 10px; text-decoration: none;"> | Delete Reply </a>{%
+                                endif %}</span>
+                                <span style="margin-left: 20px;"><br><br>{{ reply.reply.strip() }}<br><br></span>
                             </div>
                             <hr style="margin: 5px 0 0 0;">
                         </li>
                     </ul>
                     {% endfor %}
                     {% endif %}
+                    {% if c_count < 1 and comment == True %}
+                    <p>No replies to display.</p>
+                    <hr style="margin: 0 0 20px 0;">
+                    {% endif %}
                     {% else %}
+                    {% if deleted != "True" %}
+                    <hr style="margin: 50px 0 20px 0;">
+                    {% endif %}
+                    {% for comment_item in comments %}
+                    <ul class="commentList" style="margin-bottom: 20px; list-style-type: none;">
+                        <li>
+                            <div class="commenterImage">
+                                <img src="{{ comment_item['author_email'] | gravatar }}" style="border-radius: 100px;"/>
+                            </div>
+                            <div>
+                                <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;"><a
+                                        href="{{ url_for('user_page', user_id=comment_item['author_id']) }}"
+                                        style="text-decoration: none;">{{ comment_item["author"] }}</a> {% if comment != True %}{{ comment_item["date"] }}{% endif %}{% if comment == True and comment_item == original_comment %} | Original Comment{% endif %}{% if comment != True %}<a
+                                        href="{{ url_for('show_comment', comment_id=comment_item['comment_id'], deleted='True', post_id=post_id) }}"
+                                        style="font-size: 15px; margin-top: 10px; text-decoration: none;">{% if comment_item["replies"] %}{% if comment_item["replies"]|length == 1 %} | View Reply{% else %} | View Replies ({{comment_item["replies"]|length}}){% endif %}{% else %} | View Comment{% endif %}</a>{% endif %}
+                            <span style="margin-left: 20px;">{{ comment_item["comment"]|safe() }}</span>
+                            </span>
+                            </div>
+                            <hr style="margin: 5px 0 0 0;">
+                        </li>
+                    </ul>
+                    {% endfor %}
+                    {% if comment == True %}
+                    {% if replies|length > 0 %}Replies{% else %}No replies to display.{% endif %}
+                    <hr style="margin: 20px 0 20px 0;">
+                    {% for reply in replies %}
+                    <ul class="commentList" style="margin-bottom: 20px; list-style-type: none;">
+                        <li>
+                            <div class="commenterImage">
+                                <img src="{{ reply['author_email'] | gravatar }}" style="border-radius: 100px;"/>
+                            </div>
+                            <div>
+
+                                <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;"><a
+                                        href="{{ url_for('user_page', user_id=reply.author_id) }}"
+                                        style="text-decoration: none;">{{ reply["author"] }}</a> | {{ reply["date"] }}</span>
+                                <span style="margin-left: 20px;"><br><br>{{ reply["reply"] }}<br><br></span>
+                            </div>
+                            <hr style="margin: 5px 0 0 0;">
+                        </li>
+                    </ul>
+                    {% endfor %}
+                    {% endif %}
+                    {% endif %}
+                    {% if c_count == 0 and comment != True %}
                     <p>No comments to display.</p>
                     <hr style="margin: 0 0 20px 0;">
                     {% endif %}
                     <div class="clearfix">
                         {% if deleted != "True" %}
                         {% if c_count >= 3 %}
+                        {% if comment != True %}
                         <a class="btn btn-primary float-right"
                            href="{{ url_for('show_post', c_page=current_c + 1, post_id=post.id) }}">NEXT
                             PAGE
                             &rarr;</a>
+                        {% else %}
+                        <a class="btn btn-primary float-right"
+                           href="{{ url_for('show_comment', c_page=current_c + 1, comment_id=original_comment.id) }}">NEXT
+                            PAGE
+                            &rarr;</a>
+                        {% endif %}
                         {% endif %}
                         {% if current_c > 1 %}
+                        {% if comment != True %}
                         <a class="btn btn-primary float-left"
                            href="{{ url_for('show_post', c_page=current_c - 1, post_id=post.id) }}">&larr; PREVIOUS
                             PAGE</a>
+                        {% else %}
+                        <a class="btn btn-primary float-left"
+                           href="{{ url_for('show_comment', c_page=current_c - 1, comment_id=original_comment.id) }}">&larr;
+                            PREVIOUS
+                            PAGE</a>
+                        {% endif %}
                         {% endif %}
                         {% else %}
                         {% if c_count >= 3 %}
+                        {% if comment != True %}
                         <a class="btn btn-primary float-right"
                            href="{{ url_for('show_post', c_page=current_c + 1, post_id=post[0], deleted=True) }}">NEXT
                             PAGE
                             &rarr;</a>
+                        {% else %}
+                        <a class="btn btn-primary float-right"
+                           href="{{ url_for('show_comment', c_page=current_c + 1, post_id=post[0], deleted=True, comment_id=original_comment['comment_id']) }}">NEXT
+                            PAGE
+                            &rarr;</a>
+                        {% endif %}
                         {% endif %}
                         {% if current_c > 1 %}
+                        {% if comment != True %}
                         <a class="btn btn-primary float-left"
                            href="{{ url_for('show_post', c_page=current_c - 1, post_id=post[0], deleted=True) }}">&larr;
                             PREVIOUS
                             PAGE</a>
+                        {% else %}
+                        <a class="btn btn-primary float-left"
+                           href="{{ url_for('show_comment', c_page=current_c - 1, post_id=post[0], deleted=True, comment_id=original_comment['comment_id']) }}">&larr;
+                            PREVIOUS
+                            PAGE</a>
+                        {% endif %}
                         {% endif %}
                         {% endif %}
                     </div>
@@ -152,7 +271,8 @@
         </div>
     </article>
 
+
     <hr style="margin-top: 20px;">
     {% include "footer.html" %}
-
-    {% endblock %}
+</header>
+{% endblock %}
