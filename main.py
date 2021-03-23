@@ -42,7 +42,7 @@ import string
 # ------------------ APPLICATION CONFIG BLOCK ------------------
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", 'fSNatTWIBe')
 ckeditor = CKEditor(app)
 Bootstrap(app)
 months = [(i, dt.date(2008, i, 1).strftime('%B')) for i in range(1, 13)]
@@ -50,11 +50,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 587
-app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
-app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
+app.config["MAIL_USERNAME"] = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD', 'irfohoqcktvtchzv')
 app.config['MAIL_USE_TLS'] = True
 app.config['JSON_SORT_KEYS'] = False
-EMAIL = os.environ.get('EMAIL')
+EMAIL = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager()
@@ -397,35 +397,27 @@ def get_data(homepage=False):  # GET CONFIG DATA
         default_data = {"secret_password": generate_password_hash(password="default",
                                                                   method='pbkdf2:sha256', salt_length=8),
                         "website_configuration": {
- master
                             "name": "Website",
                             "homepage_title": "A website",
                             "homepage_subtitle": "A fully fledged website",
                             "navigation_bar_color": "#ffffff",
                             "background_image": "https://www.panggi.com/images/featured/python.png",
                             "twitter_link": "https://www.twitter.com",
-
-                            "name": "Hridaya's Blog",
-                            "homepage_title": "Hridaya's Blog",
-                            "homepage_subtitle": "A blog full of knowledge & acadmemics",
-                            "background_image": "https://www.gsma.com/newsroom/wp-content/uploads//blog-banner-650x320.png",
-                            "twitter_link": "https://www.twitter.com/TrainingPega",
- master
                             "facebook_link": "https://www.facebook.com",
-                            "github_link": "https://www.github.com/hridaya423"
+                            "github_link": "https://www.github.com"
                         },
                         "contact_configuration": {
                             "page_heading": "Contact us",
                             "page_subheading": "Contact us, and we'll respond as soon as we can.",
                             "page_description": "With the current workload, we are able to respond within 24 hours.",
-                            "background_image": "https://www.gsma.com/newsroom/wp-content/uploads//blog-banner-650x320.png",
+                            "background_image": "https://www.panggi.com/images/featured/python.png",
                             "support_email": os.environ.get('EMAIL', EMAIL)
                         },
                         "about_configuration": {
-                            "page_heading": "About me",
-                            "page_subheading": "About this blog",
-                            "background_image": "https://www.gsma.com/newsroom/wp-content/uploads//blog-banner-650x320.png",
-                            "page_content": "This is a blog for programmers, academic learners, researchers"
+                            "page_heading": "About us",
+                            "page_subheading": "About what we do.",
+                            "background_image": "https://www.panggi.com/images/featured/python.png",
+                            "page_content": "For now, this page remains empty."
                         }
                         }
         update_data(default_data)
