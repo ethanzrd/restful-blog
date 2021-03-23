@@ -397,7 +397,6 @@ def get_data(homepage=False):  # GET CONFIG DATA
         default_data = {"secret_password": generate_password_hash(password="default",
                                                                   method='pbkdf2:sha256', salt_length=8),
                         "website_configuration": {
- master
                             "name": "Website",
                             "homepage_title": "A website",
                             "homepage_subtitle": "A fully fledged website",
@@ -410,7 +409,6 @@ def get_data(homepage=False):  # GET CONFIG DATA
                             "homepage_subtitle": "A blog full of knowledge & acadmemics",
                             "background_image": "https://www.gsma.com/newsroom/wp-content/uploads//blog-banner-650x320.png",
                             "twitter_link": "https://www.twitter.com/TrainingPega",
- master
                             "facebook_link": "https://www.facebook.com",
                             "github_link": "https://www.github.com/hridaya423"
                         },
