@@ -31,7 +31,7 @@
 <!-- Navigation -->
 <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
     <div class="container">
-        <a class="navbar-brand" href="{{url_for('home')}}"><h2>{{ name }}</h2></a>
+        <a class="navbar-brand" style="color: {{navbar}}" href="{{url_for('home')}}"><h2>{{ name }}</h2></a>
         <button aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation"
                 class="navbar-toggler navbar-toggler-right" data-target="#navbarResponsive" data-toggle="collapse"
                 type="button">
@@ -41,28 +41,28 @@
         <div class="collapse navbar-collapse" id="navbarResponsive">
             <ul class="navbar-nav ml-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('home') }}">Home</a>
+                    <a style="color: {{ navbar }}" class="nav-link" href="{{ url_for('home') }}">Home</a>
                 </li>
                 {% if not current_user.is_authenticated %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                    <a style="color: {{ navbar }}" class="nav-link" href="{{ url_for('login') }}">Login</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                    <a style="color: {{ navbar }}" class="nav-link" href="{{ url_for('register') }}">Register</a>
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('logout') }}">Log Out</a>
+                    <a style="color: {{ navbar }}" class="nav-link" href="{{ url_for('logout') }}">Log Out</a>
                 </li>
                 {% endif %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('about') }}">About</a>
+                    <a style="color: {{ navbar }}" class="nav-link" href="{{ url_for('about') }}">About</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('contact') }}">Contact</a>
+                    <a style="color: {{ navbar }}" class="nav-link" href="{{ url_for('contact') }}">Contact</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('search') }}">Search</a>
+                    <a style="color: {{ navbar }}" class="nav-link" href="{{ url_for('search') }}">Search</a>
                 </li>
             </ul>
         </div>

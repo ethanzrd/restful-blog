@@ -10,11 +10,11 @@
             <div class="col-lg-8 col-md-10 mx-auto">
                 <div class="page-heading">
                     {% if edit != True %}
-                    <h1>New Post</h1>
-                    <span class="subheading">Add new posts to your website!</span>
+                    <h1 style="color: {{navbar}}">New Post</h1>
+                    <span style="color: {{navbar}}" class="subheading">Add new posts to your website!</span>
                     {% else %}
-                    <h1>Edit Post</h1>
-                    <span class="subheading">Currently Editing: {{ post.title }}</span>
+                    <h1 style="color: {{navbar}}">Edit Post</h1>
+                    <span style="color: {{navbar}}" class="subheading">Currently Editing: {{ post.title }}</span>
                     {% endif %}
                 </div>
             </div>

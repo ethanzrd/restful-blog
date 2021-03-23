@@ -19,6 +19,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from sqlalchemy.orm import relationship
 from wtforms import StringField, SubmitField, PasswordField, SelectField
+from wtforms_components import ColorField
 from wtforms.validators import DataRequired, URL, Email
 from flask_ckeditor import CKEditor, CKEditorField
 import datetime as dt
@@ -131,6 +132,7 @@ class BlogPost(db.Model):
     author = relationship("User", back_populates="posts")
     title = db.Column(db.String(400), nullable=False)
     subtitle = db.Column(db.String(400), nullable=False)
+    color = db.Column(db.String(200), default='')
     date = db.Column(db.String(400), nullable=False)
     body = db.Column(db.Text, nullable=False)
     img_url = db.Column(db.String(600), nullable=True)
@@ -395,11 +397,20 @@ def get_data(homepage=False):  # GET CONFIG DATA
         default_data = {"secret_password": generate_password_hash(password="default",
                                                                   method='pbkdf2:sha256', salt_length=8),
                         "website_configuration": {
+ master
+                            "name": "Website",
+                            "homepage_title": "A website",
+                            "homepage_subtitle": "A fully fledged website",
+                            "navigation_bar_color": "#ffffff",
+                            "background_image": "https://www.panggi.com/images/featured/python.png",
+                            "twitter_link": "https://www.twitter.com",
+
                             "name": "Hridaya's Blog",
                             "homepage_title": "Hridaya's Blog",
                             "homepage_subtitle": "A blog full of knowledge & acadmemics",
                             "background_image": "https://www.gsma.com/newsroom/wp-content/uploads//blog-banner-650x320.png",
                             "twitter_link": "https://www.twitter.com/TrainingPega",
+ master
                             "facebook_link": "https://www.facebook.com",
                             "github_link": "https://www.github.com/hridaya423"
                         },
@@ -609,6 +620,13 @@ def get_background(configuration="none"):
         return ""
 
 
+def get_navbar():
+    try:
+        return get_data()["website_configuration"]["navigation_bar_color"]
+    except (KeyError, TypeError):
+        return '#FFFFFF'
+
+
 # ------------------ END BLOCK ------------------
 
 # ------------------ ERROR HANDLERS ------------------
@@ -616,6 +634,7 @@ def get_background(configuration="none"):
 @app.errorhandler(401)
 def unauthorized(e):
     return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           navbar=get_navbar(),
                            error="401 - Unauthorized", error_description="You're unauthorized to perform this action.",
                            name=get_name()), 401
 
@@ -623,6 +642,7 @@ def unauthorized(e):
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           navbar=get_navbar(),
                            error="403 - Forbidden", error_description="You're unauthorized to perform this action.",
                            name=get_name()), 403
 
@@ -630,6 +650,7 @@ def forbidden(e):
 @app.errorhandler(404)
 def not_found(e):
     return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           navbar=get_navbar(),
                            error="404 - Page Not Found", error_description="Page not found.",
                            name=get_name()), 404
 
@@ -637,6 +658,7 @@ def not_found(e):
 @app.errorhandler(500)
 def internal_error(e):
     return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           navbar=get_navbar(),
                            error="500 - Internal Server Error", error_description="An error has occurred on our side,"
                                                                                   "we apologize for the inconvenience.",
                            name=get_name()), 500
@@ -653,9 +675,10 @@ def internal_error(e):
 class CreatePostForm(FlaskForm):
     title = StringField("Post Title", validators=[DataRequired()])
     subtitle = StringField("Subtitle", validators=[DataRequired()])
+    navigation_bar_color = ColorField()
     img_url = StringField("Post Image URL")
     body = CKEditorField("Post Content", validators=[DataRequired()])
-    submit = SubmitField("Submit Post", render_kw={"style": "margin-top: 20px;"})
+    submit = SubmitField("Submit", render_kw={"style": "margin-top: 20px;"})
 
 
 # ------ END ------
@@ -670,6 +693,7 @@ class WebConfigForm(FlaskForm):
                                  render_kw={"style": "margin-bottom: 10px;"})
     homepage_subtitle = StringField("Homepage Subtitle", validators=[DataRequired()],
                                     render_kw={"style": "margin-bottom: 10px;"})
+    navigation_bar_color = ColorField()
     background_image = StringField("Background Image URL",
                                    render_kw={"style": "margin-bottom: 10px;"})
     twitter_link = StringField("Twitter Link", validators=[DataRequired(), URL()],
@@ -918,7 +942,7 @@ def home():
         db.create_all()
     return render_template("index.html", all_posts=get_posts()[:3], posts_count=len(get_posts()), current_id=1,
                            title=data[0], subtitle=data[1], name=get_name(),
-                           background_image=get_background("website_configuration"))
+                           background_image=get_background("website_configuration"), navbar=get_navbar())
 
 
 @app.route('/page/<int:page_id>')
@@ -943,7 +967,7 @@ def page(page_id):
         return render_template('index.html', deleted_posts=posts, deleted='True',
                                posts_count=count, current_id=page_id, name=get_name(),
                                background_image=get_background('website_configuration'), title="Deleted Posts",
-                               subtitle="View and recover deleted posts!")
+                               subtitle="View and recover deleted posts!", navbar=get_navbar())
     elif user_id is not None and User.query.get(user_id) is not None:
         user = User.query.get(user_id)
         posts = get_user_posts(user_id)
@@ -962,7 +986,7 @@ def page(page_id):
                                        title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Posts",
                                        name=get_name(),
                                        background_image=get_background('website_configuration'), current_mode='posts',
-                                       user=user)
+                                       user=user, navbar=get_navbar())
             elif current_mode == 'comments':
                 blog_posts = comments
                 if page_id == 1:
@@ -976,7 +1000,7 @@ def page(page_id):
                                        current_id=page_id,
                                        title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Comments",
                                        name=get_name(),
-                                       background_image=get_background('website_configuration'),
+                                       background_image=get_background('website_configuration'), navbar=get_navbar(),
                                        current_mode='comments', user=user)
             elif current_mode == 'api':
                 requested_api = get_user_api(user_id)
@@ -991,7 +1015,7 @@ def page(page_id):
                                                    title=f"{user.name}'s Profile", subtitle=f"{user.name}'s API Key",
                                                    name=get_name(),
                                                    background_image=get_background('website_configuration'),
-                                                   current_mode='api',
+                                                   current_mode='api', navbar=get_navbar(),
                                                    user=user, posts_count=len(requested_api[page_id]),
                                                    admin_count=get_admin_count())
                         except (KeyError, IndexError):
@@ -1001,7 +1025,7 @@ def page(page_id):
                                                    name=get_name(),
                                                    background_image=get_background('website_configuration'),
                                                    current_mode='api',
-                                                   user=user, posts_count=0,
+                                                   user=user, posts_count=0, navbar=get_navbar(),
                                                    admin_count=get_admin_count())
                     else:
                         if current_user.is_authenticated:
@@ -1029,7 +1053,7 @@ def page(page_id):
                                subtitle="Visualize your user database effortlessly.",
                                background_image=get_background('website_configuration'),
                                unconfirmed=any(User.query.filter_by(confirmed_email=False).all()),
-                               current_view=view_filter)
+                               current_view=view_filter, navbar=get_navbar())
     elif settings_view is not None:
         if mode != 'admin':
             if current_user.is_authenticated:
@@ -1058,7 +1082,7 @@ def page(page_id):
                                subtitle=subtitle,
                                name=get_name(),
                                background_image=get_background('website_configuration'), current_id=page_id,
-                               posts_count=count, mode=mode)
+                               posts_count=count, mode=mode, navbar=get_navbar())
     else:
         blog_posts = get_posts()
         if page_id == 1:
@@ -1071,7 +1095,7 @@ def page(page_id):
     return render_template("index.html", all_posts=posts, posts_count=count, current_id=page_id,
                            name=get_name(),
                            background_image=get_background('website_configuration'), title=data[0],
-                           subtitle=data[1])
+                           subtitle=data[1], navbar=get_navbar())
 
 
 @app.route("/about")
@@ -1087,7 +1111,8 @@ def about():
         subheading = about_config['page_subheading']
         content = about_config['page_content']
     return render_template("about.html", heading=heading, subheading=subheading, content=content,
-                           background_image=get_background('about_configuration'), name=get_name())
+                           background_image=get_background('about_configuration'), name=get_name(),
+                           navbar=get_navbar())
 
 
 @app.route("/contact", methods=['GET', 'POST'])
@@ -1123,10 +1148,12 @@ def contact():
                 return redirect(url_for('home'))
         return render_template("contact.html", form=form, heading=heading, subheading=subheading,
                                description=description,
-                               background_image=get_background('contact_configuration'), name=get_name())
+                               background_image=get_background('contact_configuration'), name=get_name(),
+                               navbar=get_navbar())
     return render_template("contact.html", heading=heading, subheading=subheading,
                            description=description,
-                           background_image=get_background('contact_configuration'), name=get_name())
+                           background_image=get_background('contact_configuration'), name=get_name(),
+                           navbar=get_navbar())
 
 
 # ------------------ END BLOCK ------------------
@@ -1144,16 +1171,16 @@ def search():
                                    title="Search Results",
                                    subtitle=f"Displaying post search results for: {form.search.data}",
                                    name=get_name(), background_image=get_background('website_configuration'),
-                                   search=True, mode='posts')
+                                   search=True, mode='posts', navbar=get_navbar())
         else:
             users = [user for user in User.query.msearch(form.search.data).all() if user.confirmed_email is True]
             return render_template("index.html", results=users[:3], posts_count=len(users), current_id=1,
                                    title="Search Results",
                                    subtitle=f"Displaying user search results for: {form.search.data}",
                                    name=get_name(), background_image=get_background('website_configuration'),
-                                   search=True, mode='users')
+                                   search=True, mode='users', navbar=get_navbar())
     return render_template('search.html', form=form, name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
 @app.route("/post/<int:post_id>", methods=['GET', 'POST'])
@@ -1161,16 +1188,19 @@ def show_post(post_id):
     deleted = request.args.get('deleted')
     comment_page = request.args.get('c_page')
     form = CommentForm()
+    navbar = get_navbar()
     if deleted is None:
         try:
             requested_post = BlogPost.query.get(post_id)
             post_comments = BlogPost.query.get(post_id).comments
+            navbar = requested_post.color if requested_post.color != '' else get_navbar()
         except AttributeError:
             return abort(404)
     else:
         try:
             requested_post = (DeletedPost.query.get(post_id).id, DeletedPost.query.get(post_id).json_column)
-        except AttributeError:
+            navbar = requested_post[1]["color"] if requested_post[1]["color"] != '' else get_navbar()
+        except (AttributeError, IndexError):
             flash("Could not find a post with the specified ID.")
             return redirect(url_for('deleted_posts'))
         post_comments = requested_post[1]["comments"]
@@ -1209,7 +1239,7 @@ def show_post(post_id):
         else:
             flash("User is not logged in.")
             return redirect(url_for('show_post', post_id=post_id))
-    return render_template("post.html", post=requested_post, deleted=str(deleted), post_id=post_id,
+    return render_template("post.html", post=requested_post, deleted=str(deleted), post_id=post_id, navbar=navbar,
                            name=get_name(), form=form, comments=comment_items, current_c=int(current_c), c_count=count)
 
 
@@ -1228,6 +1258,7 @@ def show_comment(comment_id):
                 replies = requested_comment["replies"]
                 original_comment = requested_comment
                 parent_post = requested_post
+                navbar = requested_post[1]["color"] if requested_post[1]["color"] != '' else get_navbar()
             except (AttributeError, IndexError, KeyError):
                 return abort(404)
         else:
@@ -1239,6 +1270,7 @@ def show_comment(comment_id):
             replies = requested_comment.replies
             original_comment = requested_comment
             parent_post = requested_comment.parent_post
+            navbar = parent_post.color if parent_post.color != '' else get_navbar()
         except AttributeError:
             return abort(404)
     if reply_page is not None:
@@ -1267,7 +1299,7 @@ def show_comment(comment_id):
             return redirect(url_for('show_comment', comment_id=requested_comment.id))
     return render_template("post.html", c_count=len(reply_items), current_c=int(current_c), name=get_name(),
                            comment=True, original_comment=original_comment,
-                           post=parent_post, comments=[requested_comment],
+                           post=parent_post, comments=[requested_comment], navbar=navbar,
                            form=form, replies=reply_items, deleted=str(deleted), post_id=post_id)
 
 
@@ -1285,7 +1317,8 @@ def edit_comment(comment_id):
                 return render_template('config.html', config_title="Edit Your Comment",
                                        config_desc="Here, you'll be able to edit your comments.", form=form,
                                        config_func="edit_comment", name=get_name(),
-                                       background_image=get_background('website_configuration'), comment_id=comment_id)
+                                       background_image=get_background('website_configuration'), navbar=get_navbar(),
+                                       comment_id=comment_id)
             else:
                 return abort(403)
         else:
@@ -1335,7 +1368,7 @@ def edit_reply(reply_id):
                                        config_desc="Here, you'll be able to edit your replies.", form=form,
                                        config_func="edit_reply", name=get_name(),
                                        background_image=get_background('website_configuration'), reply_id=reply_id,
-                                       c_page=current_c)
+                                       c_page=current_c, navbar=get_navbar())
             else:
                 return abort(403)
         else:
@@ -1355,15 +1388,19 @@ def edit_post(post_id):
                 form = CreatePostForm(title=post.title,
                                       subtitle=post.subtitle,
                                       img_url=post.img_url,
+                                      navigation_bar_color=post.color,
                                       body=post.body)
                 if form.validate_on_submit():
                     post.title = form.title.data
                     post.subtitle = form.subtitle.data
                     post.img_url = form.img_url.data
+                    post.color = form.navigation_bar_color.data.hex
                     post.body = form.body.data
                     db.session.commit()
                     return redirect(url_for('show_post', post_id=post_id))
-                return render_template('make-post.html', edit=True, post=post, form=form, name=get_name())
+                return render_template('make-post.html', edit=True, post=post, form=form, name=get_name(),
+                                       background_image=post.img_url,
+                                       navbar=post.color if post.color != '' else get_navbar())
             else:
                 return abort(403)
         else:
@@ -1376,12 +1413,13 @@ def edit_post(post_id):
 @app.route('/add', methods=['GET', 'POST'])
 @staff_only
 def add_post():
-    form = CreatePostForm()
+    form = CreatePostForm(navigation_bar_color=get_navbar())
     if form.validate_on_submit():
         date = generate_date()
         new_post = BlogPost(title=form.title.data,
                             subtitle=form.subtitle.data,
                             author=current_user,
+                            color=form.navigation_bar_color.data.hex,
                             img_url=form.img_url.data,
                             body=form.body.data,
                             date=date)
@@ -1389,7 +1427,7 @@ def add_post():
         db.session.commit()
         return redirect(url_for('home'))
     return render_template('make-post.html', form=form, name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
 @app.route('/deleted')
@@ -1400,7 +1438,7 @@ def deleted_posts():
                            deleted="True",
                            posts_count=len(posts), current_id=1, name=get_name(),
                            background_image=get_background('website_configuration'), title="Deleted Posts",
-                           subtitle="View and recover deleted posts!")
+                           subtitle="View and recover deleted posts!", navbar=get_navbar())
 
 
 @app.route('/delete/<int:post_id>')
@@ -1420,6 +1458,7 @@ def delete_post(post_id):
                 "author_id": post.author.id,
                 "author_email": post.author.email,
                 "author": post.author.name,
+                "color": post.color,
                 "subtitle": post.subtitle,
                 "img_url": post.img_url,
                 "body": post.body,
@@ -1470,6 +1509,7 @@ def recover_post(post_id):
     new_post = BlogPost(author=User.query.filter_by(email=post["author_email"]).first(),
                         title=post["post_title"],
                         subtitle=post["subtitle"],
+                        color=post["color"],
                         date=post["date"],
                         body=post["body"],
                         img_url=post["img_url"],
@@ -1561,7 +1601,7 @@ def settings():
                            posts_count=len(options),
                            errors=errors, title=title,
                            subtitle=subtitle,
-                           name=get_name(),
+                           name=get_name(), navbar=get_navbar(),
                            background_image=get_background('website_configuration'), current_id=1, mode=mode)
 
 
@@ -1574,6 +1614,7 @@ def web_configuration():
         form = WebConfigForm(name=config_data['name'],
                              homepage_title=config_data['homepage_title'],
                              homepage_subtitle=config_data['homepage_subtitle'],
+                             navigation_bar_color=config_data["navigation_bar_color"],
                              background_image=config_data['background_image'],
                              twitter_link=config_data['twitter_link'],
                              facebook_link=config_data['facebook_link'],
@@ -1585,6 +1626,7 @@ def web_configuration():
             "name": form.name.data,
             "homepage_title": form.homepage_title.data,
             "homepage_subtitle": form.homepage_subtitle.data,
+            "navigation_bar_color": form.navigation_bar_color.data.hex,
             "background_image": form.background_image.data,
             "twitter_link": form.twitter_link.data,
             "facebook_link": form.facebook_link.data,
@@ -1597,7 +1639,7 @@ def web_configuration():
     return render_template('config.html', config_title="Website Configuration",
                            config_desc="Configure primary website elements.", form=form,
                            config_func="web_configuration", name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
 @app.route('/contact-configure', methods=['GET', 'POST'])
@@ -1628,7 +1670,7 @@ def contact_configuration():
     return render_template('config.html', config_title="Contact Page Configuration",
                            config_desc="Configure primary elements of the contact page.", form=form,
                            config_func="contact_configuration", name=get_name(),
-                           background_image=get_background('contact_configuration'))
+                           background_image=get_background('contact_configuration'), navbar=get_navbar())
 
 
 @app.route('/about-configure', methods=['GET', 'POST'])
@@ -1656,7 +1698,7 @@ def about_configuration():
     return render_template('config.html', config_title="About Page Configuration",
                            config_desc="Configure primary elements of the about page.", form=form,
                            config_func="about_configuration", name=get_name(),
-                           background_image=get_background('about_configuration'))
+                           background_image=get_background('about_configuration'), navbar=get_navbar())
 
 
 @app.route('/auth-configure', methods=['GET', 'POST'])
@@ -1692,7 +1734,7 @@ def authentication_configuration():
     return render_template('config.html', config_title="Authentication Configuration",
                            config_desc="Configure primary elements of the website's authentication", form=form,
                            config_func="authentication_configuration", name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
 # ------------------ END BLOCK ------------------
@@ -1708,7 +1750,7 @@ def user_table():
     users = get_users_filter(view_filter)
     user_dict = get_user_dict(users)
     return render_template('index.html', users=list(user_dict.values())[:3],
-                           background_image=get_background('website_configuration'),
+                           background_image=get_background('website_configuration'), navbar=get_navbar(),
                            name=get_name(), current_id=1, user_table="True", title="User Database Table",
                            subtitle="Visualize your user database effortlessly.",
                            posts_count=len(list(user_dict.values())),
@@ -1749,7 +1791,7 @@ def make_admin(user_id):
                 return redirect(url_for('user_page', user_id=user_id))
             return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
                                    name=get_name(), background_image=get_background('website_configuration'),
-                                   category='admin')
+                                   category='admin', navbar=get_navbar())
         else:
             flash("This user is already an administrator.")
             return redirect(url_for('user_page', user_id=user_id))
@@ -1776,7 +1818,7 @@ def remove_admin(user_id):
                 return redirect(url_for('user_page', user_id=user_id))
             return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
                                    name=get_name(), background_image=get_background('website_configuration'),
-                                   category='admin', remove="True")
+                                   category='admin', remove="True", navbar=get_navbar())
         else:
             flash("This user is not an administrator.")
             return redirect(url_for('user_page', user_id=user_id))
@@ -1800,7 +1842,7 @@ def make_author(user_id):
                 return redirect(url_for('user_page', user_id=user_id))
             return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
                                    name=get_name(), background_image=get_background('website_configuration'),
-                                   category='author')
+                                   category='author', navbar=get_navbar())
         else:
             flash("This user is already set as an author.")
             return redirect(url_for('user_page', user_id=user_id))
@@ -1824,7 +1866,7 @@ def remove_author(user_id):
                 return redirect(url_for('user_page', user_id=user_id))
             return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
                                    name=get_name(), background_image=get_background('website_configuration'),
-                                   category='author', remove="True")
+                                   category='author', remove="True", navbar=get_navbar())
         else:
             flash("This user is not an author.")
             return redirect(url_for('user_page', user_id=user_id))
@@ -1845,13 +1887,14 @@ def user_page(user_id):
             return render_template("user.html", comments=comments[:3], posts_count=len(comments[:3]), current_id=1,
                                    title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Comments", name=get_name(),
                                    background_image=get_background('website_configuration'), current_mode='comments',
-                                   user=user, api_exists=check_api(user_id), report_exists=check_deletion(user_id),
+                                   user=user, api_exists=check_api(user_id), navbar=get_navbar(),
+                                   report_exists=check_deletion(user_id),
                                    admin_count=admin_count)
         elif current_mode == 'posts' or current_mode is None:
             return render_template("user.html", all_posts=posts[:3], posts_count=len(posts[:3]), current_id=1,
                                    title=f"{user.name}'s Profile", subtitle=f"{user.name}'s Posts", name=get_name(),
                                    background_image=get_background('website_configuration'), current_mode='posts',
-                                   user=user, report_exists=check_deletion(user_id),
+                                   user=user, report_exists=check_deletion(user_id), navbar=get_navbar(),
                                    admin_count=admin_count,
                                    api_exists=check_api(user_id))
         elif current_mode == 'api':
@@ -1864,6 +1907,7 @@ def user_page(user_id):
                                            title=f"{user.name}'s Profile", subtitle=f"{user.name}'s API Key",
                                            name=get_name(),
                                            background_image=get_background('website_configuration'),
+                                           navbar=get_navbar(),
                                            current_mode='api',
                                            user=user, posts_count=1, report_exists=check_deletion(user_id),
                                            admin_count=admin_count)
@@ -1886,6 +1930,7 @@ def user_page(user_id):
                                                                                     f" Deletion Request Report",
                                            name=get_name(),
                                            background_image=get_background('website_configuration'),
+                                           navbar=get_navbar(),
                                            current_mode='delete-report',
                                            user=user, posts_count=1, api_exists=check_api(user_id),
                                            admin_count=admin_count)
@@ -1920,7 +1965,7 @@ def delete_user(user_id):
             db.session.commit()
             return redirect(url_for('home'))
         return render_template('delete.html', form=form, user_id=user_id, name=get_name(), user_name=user.name,
-                               background_image=get_background('website_configuration'))
+                               background_image=get_background('website_configuration'), navbar=get_navbar())
 
     else:
         flash("This user does not exist.")
@@ -1993,7 +2038,7 @@ def request_deletion():
             return render_template('config.html', config_title="Account Deletion Request",
                                    config_desc="Request to delete your account.",
                                    form=form, config_func="request_deletion", name=get_name(),
-                                   background_image=get_background('website_configuration'))
+                                   background_image=get_background('website_configuration'), navbar=get_navbar())
     else:
         flash("Could not find a user with the specified ID.")
         return redirect(url_for('home'))
@@ -2060,7 +2105,7 @@ def authorization():
         else:
             flash("Incorrect authorization code.")
     return render_template('delete.html', form=form, authorization=True, user_id=user_id, name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
 @app.route('/admin-auth', methods=['GET', 'POST'])
@@ -2094,7 +2139,7 @@ def admin_auth():
             flash("Incorrect authorization code.")
     return render_template('admin-form.html', form=form, authorization=True, user_id=user_id, name=get_name(),
                            background_image=get_background('website_configuration'), category='admin',
-                           remove=remove)
+                           remove=remove, navbar=get_navbar())
 
 
 # ------------------ END BLOCK ------------------
@@ -2150,7 +2195,7 @@ def register():
 
             return redirect(url_for('register'))
     return render_template('register.html', form=form, name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
 @app.route('/verify/<token>')
@@ -2203,7 +2248,7 @@ def login():
         else:
             flash("This email does not exist, please try again.")
     return render_template("login.html", form=form, email=email, user_name=user_name, name=get_name(),
-                           background_image=get_background('website_configuration'))
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
 @app.route('/validate')
@@ -2243,7 +2288,7 @@ def generate_key():
         return render_template('config.html', config_title="API Key Generation",
                                config_desc="Generate an API Key to use our API Service.", form=form,
                                config_func="generate_key", name=get_name(),
-                               background_image=get_background('website_configuration'))
+                               background_image=get_background('website_configuration'), navbar=get_navbar())
     else:
         flash("You already have an API key.")
         return redirect(url_for('user_page', user_id=current_user.id, current_mode='api'))

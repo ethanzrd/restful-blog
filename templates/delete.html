@@ -9,8 +9,8 @@
         <div class="row">
             <div class="col-lg-8 col-md-10 mx-auto">
                 <div class="page-heading">
-                    <h1>{% if authorization != True %}Account Deletion Report{% else %}Admin Account Deletion Attempt{% endif %}</h1>
-                    <span class="subheading">{% if authorization != True %}Report For: {{ user_name }}{% else %}You are attempting to delete a website administrator account, in order to delete the account, you must provide the admin deletion authentication password.{% endif %}<br><br>Please note that you are required to present a reasonable explanation to the termination, you may not delete and/or take action against a user without a corresponding reason.</span>
+                    <h1 style="color: {{navbar}}">{% if authorization != True %}Account Deletion Report{% else %}Admin Account Deletion Attempt{% endif %}</h1>
+                    <span style="color: {{navbar}}" class="subheading">{% if authorization != True %}Report For: {{ user_name }}{% else %}You are attempting to delete a website administrator account, in order to delete the account, you must provide the admin deletion authentication password.{% endif %}<br><br>Please note that you are required to present a reasonable explanation to the termination, you may not delete and/or take action against a user without a corresponding reason.</span>
                 </div>
             </div>
         </div>
