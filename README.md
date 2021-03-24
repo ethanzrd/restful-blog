@@ -45,6 +45,6 @@ Plans:
 
 Known Issues:
 
-- Replies and Comments made on deleted posts by deleted users are not cleared, this will be fixed in a future update to avoid issues when recovering posts.
+- Some flashed messages appear with no background.
 
 If you have any suggestions or inquires, feel free to contact me.
