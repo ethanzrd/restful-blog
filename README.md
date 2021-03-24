@@ -26,7 +26,7 @@ Features:
 
 - User Table: Visualize your user database effortlessly, within a few clicks of a button. Be able to see a comprehensive list of all your blog users, with important details altogether.
 
-- API & Developer Account: An account that generated an API key will automatically become a Developer Account, Developer Accounts will have a new section in their profiles called "View API Information" which will allow them to view their key details, and request statistics. This section will be allowed to be seen by the user and by administrators only. This is just the beginning, on-site documentation and more control over the API system are soon to come.
+- API & Developer Account: An account that generated an API key will automatically become a Developer Account, Developer Accounts will have a new section in their profiles called "View API Information" which will allow them to view their key details, and request statistics. This section will be allowed to be seen by the user and by administrators only. Administrators can block certain API keys, and enable/disable certain API routes via the API Configuration option in the website settings menu.
 
 - Account deletion - The user can request an account deletion, which will be overseen by administrators with the option to accept or reject the request, the user will be notified once a decision has been made by one of the administrators.
 
@@ -38,13 +38,13 @@ Features:
 
 Plans:
 
-- More control over the API system.
+- Improved authentication system.
 
 - Onsite API Documentation.
 
 
 Known Issues:
 
-- Replies and Comments made on deleted posts by deleted users are not cleared, this will be fixed in a future update to avoid issues when recovering posts.
+- Some flashed messages appear with no background.
 
 If you have any suggestions or inquires, feel free to contact me.
