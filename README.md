@@ -38,7 +38,7 @@ Features:
 
 Plans:
 
-- More control over the API system.
+- Improved authentication system.
 
 - Onsite API Documentation.
 
