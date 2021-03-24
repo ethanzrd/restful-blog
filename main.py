@@ -411,14 +411,7 @@ def get_data(homepage=False):  # GET CONFIG DATA
                             "homepage_subtitle": "A fully fledged website",
                             "navigation_bar_color": "#ffffff",
                             "background_image": "https://www.panggi.com/images/featured/python.png",
-                            "twitter_link": "https://www.twitter.com",
-                            "name": "Hridaya's Blog",
-                            "homepage_title": "Hridaya's Blog",
-                            "homepage_subtitle": "A blog full of knowledge & acadmemics",
-                            "background_image": "https://www.gsma.com/newsroom/wp-content/uploads//blog-banner-650x320.png",
-                            "twitter_link": "https://www.twitter.com/TrainingPega",
-                            "facebook_link": "https://www.facebook.com",
-                            "github_link": "https://www.github.com"
+                            "twitter_link": "https://www.twitter.com"
                         },
                         "contact_configuration": {
                             "page_heading": "Contact us",
