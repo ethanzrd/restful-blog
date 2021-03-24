@@ -411,7 +411,9 @@ def get_data(homepage=False):  # GET CONFIG DATA
                             "homepage_subtitle": "A fully fledged website",
                             "navigation_bar_color": "#ffffff",
                             "background_image": "https://www.panggi.com/images/featured/python.png",
-                            "twitter_link": "https://www.twitter.com"
+                            "twitter_link": "https://www.twitter.com",
+                            "github_link": "https://www.github.com",
+                            "facebook_link": "https://www.github.com"
                         },
                         "contact_configuration": {
                             "page_heading": "Contact us",
