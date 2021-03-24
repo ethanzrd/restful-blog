@@ -34,13 +34,14 @@ Features:
 
 - Edit Comments: Users now can edit their comments via the comment page.
 
+- Forgot Password: Users have the ability to recover their password after failed login attempts.
+
 Plans:
 
 - More control over the API system.
 
 - Onsite API Documentation.
 
-- A Forgot Password option.
 
 Known Issues:
 
