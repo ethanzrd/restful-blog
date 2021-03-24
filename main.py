@@ -18,7 +18,7 @@ from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from sqlalchemy.orm import relationship
-from wtforms import StringField, SubmitField, PasswordField, SelectField
+from wtforms import StringField, SubmitField, PasswordField, SelectField, BooleanField
 from wtforms_components import ColorField
 from wtforms.validators import DataRequired, URL, Email
 from flask_ckeditor import CKEditor, CKEditorField
@@ -42,7 +42,7 @@ import string
 # ------------------ APPLICATION CONFIG BLOCK ------------------
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", 'fSNatTWIBe')
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 ckeditor = CKEditor(app)
 Bootstrap(app)
 months = [(i, dt.date(2008, i, 1).strftime('%B')) for i in range(1, 13)]
@@ -50,11 +50,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 587
-app.config["MAIL_USERNAME"] = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD', 'irfohoqcktvtchzv')
+app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
+app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
 app.config['MAIL_USE_TLS'] = True
 app.config['JSON_SORT_KEYS'] = False
-EMAIL = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
+EMAIL = os.environ.get('EMAIL')
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager()
@@ -88,6 +88,9 @@ class User(UserMixin, db.Model):
     deletion_report = relationship('DeletionReport', back_populates='user')
 
 
+# ------------------ END BLOCK ------------------
+
+
 # ------------------ DATABASE CONFIG ------------------
 
 # ------ DELETION REPORT TABLE ------
@@ -114,6 +117,7 @@ class ApiKey(db.Model):
     occupation = db.Column(db.String(200), nullable=False)
     application = db.Column(db.String(1200), nullable=False)
     usage = db.Column(db.String(1200))
+    blocked = db.Column(db.Boolean(), default=False)
     api_key = db.Column(db.String(500), nullable=False)
     all_posts = db.Column(db.Integer, default=0)
     random_post = db.Column(db.Integer, default=0)
@@ -213,14 +217,15 @@ def get_user_api(user_id):
     except AttributeError:
         return None
     if requested_api is not None:
-        api_dict = {1: {"name": "API Info",
-                        "description": "View your key Information.",
+        api_dict = {1: {"key_id": requested_api.id,
+                        "name": "API Status",
+                        "description": "Online" if requested_api.blocked is False else "Blocked",
                         "Developer's Occupation": requested_api.occupation,
                         "Application": requested_api.application,
                         "API Usage": requested_api.usage,
                         "API Key": requested_api.api_key},
                     2: {"name": "API Requests",
-                        "description": "Request statistics.",
+                        "description": "Request statistics",
                         "Total Requests": sum([requested_api.all_posts, requested_api.random_post,
                                                requested_api.all_users]),
                         "All Posts Requests": requested_api.all_posts,
@@ -393,6 +398,20 @@ def admin_redirect():
         return abort(403)
 
 
+def validate_route(route):
+    try:
+        data = get_data()["api_configuration"]
+    except KeyError:
+        return "unavailable"
+    else:
+        try:
+            if data[route] is False:
+                return "blocked"
+            return True
+        except KeyError:
+            return "unavailable"
+
+
 def get_admin_count():  # GET THE AMOUNT OF ADMINISTRATORS
     return len([user for user in User.query.all() if user.admin is True])
 
@@ -412,13 +431,13 @@ def get_data(homepage=False):  # GET CONFIG DATA
                             "navigation_bar_color": "#ffffff",
                             "background_image": "https://www.panggi.com/images/featured/python.png",
                             "twitter_link": "https://www.twitter.com",
-                            "name": "Hridaya's Blog",
-                            "homepage_title": "Hridaya's Blog",
-                            "homepage_subtitle": "A blog full of knowledge & acadmemics",
-                            "background_image": "https://www.gsma.com/newsroom/wp-content/uploads//blog-banner-650x320.png",
-                            "twitter_link": "https://www.twitter.com/TrainingPega",
-                            "facebook_link": "https://www.facebook.com",
-                            "github_link": "https://www.github.com"
+                            "github_link": "https://www.github.com",
+                            "facebook_link": "https://www.github.com"
+                        },
+                        "api_configuration": {
+                            "all_posts": True,
+                            "users": True,
+                            "random_post": True
                         },
                         "contact_configuration": {
                             "page_heading": "Contact us",
@@ -484,7 +503,10 @@ def get_options(requested_page: int = 1, website=False):
                                 "func": "authentication_configuration"},
                             5: {"name": "User Database Table",
                                 "desc": "Visualize your user database effortlessly.",
-                                "func": "user_table"}
+                                "func": "user_table"},
+                            6: {"name": "API Configuration",
+                                "desc": "Configure and manage your API system.",
+                                "func": "api_configuration"}
                             }
         else:
             return abort(403)
@@ -556,7 +578,10 @@ def check_deletion(user_id):
 
 
 def validate_key(api_key):
-    return any([key for key in ApiKey.query.all() if api_key == key.api_key])
+    try:
+        return True if ApiKey.query.filter_by(api_key=api_key).first().blocked is False else False
+    except AttributeError:
+        return False
 
 
 def get_users_filter(view_filter=None):
@@ -882,6 +907,17 @@ class AuthConfig(FlaskForm):
 
 # ------ END ------
 
+# ------ API CONFIG FORM ------
+
+class ApiConfig(FlaskForm):
+    all_posts = BooleanField("All Posts Route")
+    users = BooleanField("Users Route")
+    random_post = BooleanField("Random Post Route")
+    submit = SubmitField("Save Changes", render_kw={"style": "margin-top: 20px;"})
+
+
+# ------ END ------
+
 # ------ API KEY GENERATOR FORM ------
 
 class ApiGenerate(FlaskForm):
@@ -966,7 +1002,7 @@ def home():
     except OperationalError:
         db.create_all()
     return render_template("index.html", all_posts=get_posts()[:3], posts_count=len(get_posts()), current_id=1,
-                           title=data[0], subtitle=data[1], name=get_name(),
+                           title=data[0], subtitle=data[1], name=get_name(), category=request.args.get('category'),
                            background_image=get_background("website_configuration"), navbar=get_navbar())
 
 
@@ -1062,7 +1098,7 @@ def page(page_id):
                     return redirect(url_for(user_page, user_id=user_id))
         else:
             flash("Malformed page request for user profile.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='danger'))
     elif table_page is not None:
         users_filter = get_users_filter(view_filter)
         blog_posts = list(get_user_dict(users_filter).values())
@@ -1167,10 +1203,10 @@ def contact():
             notification = contact_notification(form.email.data, form.name.data, form.message.data)
             if notification is False:
                 flash("No support email specified, unable to send your message.")
-                return redirect(url_for('home'))
+                return redirect(url_for('home', category='danger'))
             else:
                 flash("Message successfully sent.")
-                return redirect(url_for('home'))
+                return redirect(url_for('home', category='success'))
         return render_template("contact.html", form=form, heading=heading, subheading=subheading,
                                description=description,
                                background_image=get_background('contact_configuration'), name=get_name(),
@@ -1288,7 +1324,7 @@ def show_comment(comment_id):
                 return abort(404)
         else:
             flash("Malformed Page Request - Post ID was not provided.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='danger'))
     else:
         try:
             requested_comment = get_comment(comment_id)
@@ -1350,7 +1386,7 @@ def edit_comment(comment_id):
             return abort(401)
     else:
         flash("Could not find a comment with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/delete-reply/<int:reply_id>')
@@ -1372,7 +1408,7 @@ def delete_reply(reply_id):
             return abort(401)
     else:
         flash("Could not find a reply with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/edit-reply/<int:reply_id>', methods=['GET', 'POST'])
@@ -1400,7 +1436,7 @@ def edit_reply(reply_id):
             return abort(401)
     else:
         flash("Could not find a reply with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/edit/<int:post_id>', methods=['GET', 'POST'])
@@ -1432,7 +1468,7 @@ def edit_post(post_id):
             return abort(401)
     else:
         flash("Could not find a post with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -1594,7 +1630,7 @@ def delete_comment(comment_id):
             return abort(401)
     else:
         flash("Could not find a comment with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 # ------ END ------
@@ -1762,6 +1798,33 @@ def authentication_configuration():
                            background_image=get_background('website_configuration'), navbar=get_navbar())
 
 
+@app.route('/api/configure', methods=['GET', 'POST'])
+@admin_only
+def api_configuration():
+    data = get_data()
+    try:
+        config_data = data['api_configuration']
+        form = ApiConfig(all_posts=config_data['all_posts'],
+                         users=config_data['users'],
+                         random_post=config_data['random_post'])
+    except KeyError:
+        form = ApiConfig()
+    if form.validate_on_submit():
+        new_data = {"api_configuration": {
+            "all_posts": form.all_posts.data,
+            "users": form.users.data,
+            "random_post": form.random_post.data
+        }
+        }
+        data.update(new_data)
+        update_data(data)
+        return redirect(url_for('settings', mode='admin'))
+    return render_template('config.html', config_title="API Configuration",
+                           config_desc="Configure the allowed routes for developers.", form=form,
+                           config_func="api_configuration", name=get_name(),
+                           background_image=get_background('website_configuration'), navbar=get_navbar())
+
+
 # ------------------ END BLOCK ------------------
 
 
@@ -1822,7 +1885,7 @@ def make_admin(user_id):
             return redirect(url_for('user_page', user_id=user_id))
     else:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/admin-remove/<int:user_id>', methods=['GET', 'POST'])
@@ -1849,7 +1912,7 @@ def remove_admin(user_id):
             return redirect(url_for('user_page', user_id=user_id))
     else:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/author/<int:user_id>', methods=['GET', 'POST'])
@@ -1873,7 +1936,7 @@ def make_author(user_id):
             return redirect(url_for('user_page', user_id=user_id))
     else:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/author-remove/<int:user_id>', methods=['GET', 'POST'])
@@ -1897,7 +1960,7 @@ def remove_author(user_id):
             return redirect(url_for('user_page', user_id=user_id))
     else:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/user/<int:user_id>')
@@ -1938,7 +2001,7 @@ def user_page(user_id):
                                            admin_count=admin_count)
                 else:
                     flash("Could not find an API key with the specified ID.")
-                    return redirect(url_for('home'))
+                    return redirect(url_for('home', category='danger'))
             else:
                 if current_user.is_authenticated:
                     return abort(403)
@@ -1961,12 +2024,12 @@ def user_page(user_id):
                                            admin_count=admin_count)
                 else:
                     flash("Could not find a deletion report with the specified ID.")
-                    return redirect(url_for('home'))
+                    return redirect(url_for('home', category='danger'))
         else:
             return abort(404)
     else:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/delete-user/<int:user_id>', methods=['GET', 'POST'])
@@ -1988,13 +2051,13 @@ def delete_user(user_id):
             db.session.delete(user)
             clean_posts()
             db.session.commit()
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='success'))
         return render_template('delete.html', form=form, user_id=user_id, name=get_name(), user_name=user.name,
                                background_image=get_background('website_configuration'), navbar=get_navbar())
 
     else:
         flash("This user does not exist.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 # ------------------ DELETION REQUEST BLOCK ------------------
@@ -2023,17 +2086,17 @@ def generate_deletion(user_id):
                     else:
                         db.session.commit()
                         flash("Request sent, please wait 1-3 days for administrators to review your request.")
-                        return redirect(url_for('home'))
+                        return redirect(url_for('home', category='success'))
                 else:
                     flash("Your account is already in a pending deletion state.")
-                    return redirect(url_for('home'))
+                    return redirect(url_for('home', category='danger'))
             else:
                 return abort(500)
         else:
             return abort(403)
     else:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/request-deletion', methods=['GET', 'POST'])
@@ -2051,7 +2114,7 @@ def request_deletion():
                     db.session.delete(requested_user)
                     db.session.commit()
                     flash("Your account has been successfully deleted.")
-                    return redirect(url_for('home'))
+                    return redirect(url_for('home', cateogry='success'))
                 else:
                     explanation = form.explanation.data if any(form.explanation.data) \
                         else "No additional info provided."
@@ -2066,7 +2129,7 @@ def request_deletion():
                                    background_image=get_background('website_configuration'), navbar=get_navbar())
     else:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
 
 
 @app.route('/handle-request/<token>')
@@ -2078,10 +2141,10 @@ def handle_request(token):
         confirmation = serializer.loads(token, salt='deletion_request', max_age=259200)
     except SignatureExpired:
         flash("The token is expired, please try again.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
     except BadTimeSignature:
         flash("Incorrect token, please try again.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
     else:
         requested_user = User.query.filter_by(email=email).first()
         if requested_user is not None:
@@ -2093,7 +2156,7 @@ def handle_request(token):
                 db.session.delete(requested_user)
                 clean_posts()
                 db.session.commit()
-                return redirect(url_for('home'))
+                return redirect(url_for('home', category='success'))
             else:
                 request_notification(email=requested_user.email, name=requested_user.name, decision="rejected")
                 flash("Deletion request rejected, a notification has been sent to the user.")
@@ -2101,10 +2164,10 @@ def handle_request(token):
                 if requested_report is not None:
                     db.session.delete(requested_report)
                 db.session.commit()
-                return redirect(url_for('home'))
+                return redirect(url_for('home', category='success'))
         else:
             flash("Could not find a user with the specified ID.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='danger'))
 
 
 # ------------------ END BLOCK ------------------
@@ -2117,14 +2180,14 @@ def authorization():
     user_id = request.args.get('user_id')
     if User.query.get(user_id) is None:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
     if form.validate_on_submit():
         try:
             contents = get_data()
             secret_password = contents['secret_password']
         except (KeyError, TypeError, IndexError):
             flash("Authentication Password is not available. Deletion cannot be performed at this time.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='danger'))
         if check_password_hash(secret_password, form.code.data):
             return redirect(url_for('delete_user', user_id=user_id, authorized=True))
         else:
@@ -2143,18 +2206,18 @@ def admin_auth():
     user_id = request.args.get('user_id')
     if User.query.get(user_id) is None:
         flash("Could not find a user with the specified ID.")
-        return redirect(url_for('home'))
+        return redirect(url_for('home', category='danger'))
     if form.validate_on_submit():
         contents = get_data()
         try:
             secret_password = contents['secret_password']
         except (TypeError, KeyError, IndexError):
             flash("Cannot retrieve Authentication Password, cannot set user as an administrator in this time.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='danger'))
         if not contents:
             flash("Data File is not available, cannot retrieve authentication password."
                   " Cannot set user as an administrator in this time.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='danger'))
         if check_password_hash(secret_password, form.code.data):
             if remove != 'True':
                 return redirect(url_for('make_admin', user_id=user_id, authorized=True))
@@ -2180,7 +2243,7 @@ def verify_user(email, name):
                f"{link}\n\nNote: If you're unfamiliar with the source of this email, simply ignore it."
     mail.send(msg)
     flash("A confirmation email has been sent to you.")
-    return redirect(url_for('home'))
+    return redirect(url_for('home', category='success'))
 
 
 @app.route('/verify-forget', methods=['GET', 'POST'])
@@ -2199,7 +2262,7 @@ def verify_forget():
                        f"If this wasn't you, please contact us by replying to this email or via our website."
             mail.send(msg)
             flash("A password reset email has been sent to you.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='success'))
         else:
             flash("Could not find a user with the specified email address.")
     else:
@@ -2234,7 +2297,7 @@ def forget_password(token):
                                    background_image=get_background('website_configuration'), navbar=get_navbar())
         else:
             flash("Could not find a user with the specified email address.")
-            return redirect(url_for('home'))
+            return redirect(url_for('home', category='danger'))
 
 
 @login_manager.user_loader
@@ -2297,9 +2360,11 @@ def verify_email(token):
                 db.session.commit()
                 login_user(user)
                 flash("You've confirmed your email successfully.")
+                category = 'success'
             else:
                 flash("You've already confirmed your email.")
-            return redirect(url_for('home'))
+                category = 'danger'
+            return redirect(url_for('home', category=category))
         else:
             flash("This user does not exist.")
             return redirect(url_for('register'))
@@ -2353,6 +2418,40 @@ def logout():
 
 # ------------------ API BLOCK ------------------
 
+@app.route('/api/block-key/<int:key_id>')
+@admin_only
+def block_key(key_id):
+    requested_key = ApiKey.query.get(key_id)
+    if requested_key is not None:
+        if requested_key.blocked is False:
+            requested_key.blocked = True
+            db.session.commit()
+            flash("This API Key has been blocked successfully.")
+            return redirect(url_for('user_page', current_mode='api', user_id=requested_key.developer_id))
+        else:
+            flash("This API Key is already blocked.")
+            return redirect(url_for('user_page', current_mode='api', user_id=requested_key.developer_id))
+    else:
+        return abort(404)
+
+
+@app.route('/api/unblock-key/<int:key_id>')
+@admin_only
+def unblock_key(key_id):
+    requested_key = ApiKey.query.get(key_id)
+    if requested_key is not None:
+        if requested_key.blocked is True:
+            requested_key.blocked = False
+            db.session.commit()
+            flash("This API Key has been unblocked successfully.")
+            return redirect(url_for('user_page', current_mode='api', user_id=requested_key.developer_id))
+        else:
+            flash("This API Key is not blocked.")
+            return redirect(url_for('user_page', current_mode='api', user_id=requested_key.developer_id))
+    else:
+        return abort(404)
+
+
 @app.route('/api/generate-key', methods=['GET', 'POST'])
 @login_required
 def generate_key():
@@ -2375,103 +2474,133 @@ def generate_key():
 
 @app.route('/api/all-posts')
 def api_all_posts():
-    api_key = request.args.get('api_key')
-    if api_key is not None:
-        if validate_key(api_key) is True:
-            try:
-                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
-                requesting_user.all_posts += 1
-            except AttributeError:
-                return abort(500)
-            posts = get_posts()
-            posts_dict = {posts.index(post) + 1: {"author": post.author.name,
-                                                  "title": post.title,
-                                                  "subtitle": post.subtitle,
-                                                  "published_on": post.date,
-                                                  "contents": html2text(post.body).strip(),
-                                                  "img_url": post.img_url,
-                                                  "comments": [
-                                                      (
-                                                          comment.author.name,
-                                                          html2text(comment.comment).strip())
-                                                      for
-                                                      comment
-                                                      in post.comments]}
-                          for post in posts}
-            db.session.commit()
-            return jsonify(response=posts_dict), 200
+    route_status = validate_route('all_posts')
+    if route_status is True:
+        api_key = request.args.get('api_key')
+        if api_key is not None:
+            if validate_key(api_key) is True:
+                try:
+                    requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                    requesting_user.all_posts += 1
+                except AttributeError:
+                    return abort(500)
+                posts = get_posts()
+                posts_dict = {posts.index(post) + 1: {"author": post.author.name,
+                                                      "title": post.title,
+                                                      "subtitle": post.subtitle,
+                                                      "published_on": post.date,
+                                                      "contents": html2text(post.body).strip(),
+                                                      "img_url": post.img_url,
+                                                      "comments": [
+                                                          (
+                                                              comment.author.name,
+                                                              html2text(comment.comment).strip())
+                                                          for
+                                                          comment
+                                                          in post.comments]}
+                              for post in posts}
+                db.session.commit()
+                return jsonify(response=posts_dict), 200
+            else:
+                return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
         else:
             return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
     else:
-        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+        if route_status == 'blocked':
+            return jsonify(response={"Route Blocked": "The requested route is blocked."}), 503
+        else:
+            return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
+                                                                        " is unavailable."}), 500
 
 
 @app.route('/api/random-post')
 def api_random_post():
-    api_key = request.args.get('api_key')
-    if api_key is not None:
-        if validate_key(api_key) is True:
-            try:
-                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
-                requesting_user.random_post += 1
-            except AttributeError:
-                return abort(500)
-            try:
-                post = random.choice(get_posts())
-            except IndexError:
-                post_dict = {}
+    route_status = validate_route("random_post")
+    if route_status is True:
+        api_key = request.args.get('api_key')
+        if api_key is not None:
+            if validate_key(api_key) is True:
+                try:
+                    requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                    requesting_user.random_post += 1
+                except AttributeError:
+                    return abort(500)
+                try:
+                    post = random.choice(get_posts())
+                except IndexError:
+                    post_dict = {}
+                else:
+                    post_dict = {"post": {"author": post.author.name,
+                                          "title": post.title,
+                                          "subtitle": post.subtitle,
+                                          "published_on": post.date,
+                                          "contents": html2text(post.body).strip(),
+                                          "img_url": post.img_url,
+                                          "comments": [(comment.author.name, html2text(comment.comment).strip()) for
+                                                       comment
+                                                       in post.comments]
+                                          }}
+                db.session.commit()
+                return jsonify(response=post_dict), 200
             else:
-                post_dict = {"post": {"author": post.author.name,
-                                      "title": post.title,
-                                      "subtitle": post.subtitle,
-                                      "published_on": post.date,
-                                      "contents": html2text(post.body).strip(),
-                                      "img_url": post.img_url,
-                                      "comments": [(comment.author.name, html2text(comment.comment).strip()) for comment
-                                                   in post.comments]
-                                      }}
-            db.session.commit()
-            return jsonify(response=post_dict), 200
+                return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
         else:
             return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
     else:
-        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+        if route_status == 'blocked':
+            return jsonify(response={"Route Blocked": "The requested route is blocked."}), 503
+        else:
+            return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
+                                                                        " is unavailable."}), 500
 
 
 @app.route('/api/users')
 def api_all_users():
-    api_key = request.args.get('api_key')
-    if api_key is not None:
-        if validate_key(api_key):
-            try:
-                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
-                requesting_user.all_users += 1
-            except AttributeError:
-                return abort(500)
-            users = User.query.all()
-            users_dict = {users.index(user) + 1: {"username": user.name,
-                                                  "permissions": [
-                                                      "Administrator" if user.admin is True else "Author" if user.author
-                                                                                                             is True else "Registered User" if user.confirmed_email is True
-                                                      else None][0],
-                                                  "posts": {user.posts.index(post) + 1: get_post_dict(post) for post
-                                                            in
-                                                            user.posts},
-                                                  "comments": {
-                                                      user.comments.index(comment) + 1: {"comment": comment.comment,
-                                                                                         "on_post":
-                                                                                             comment.parent_post.title,
-                                                                                         "post_author":
-                                                                                             comment.parent_post
-                                                                                                 .author.name}
-                                                      for comment in user.comments}}
-                          for user in users if user.confirmed_email is True}
-            db.session.commit()
-            return jsonify(response=users_dict)
+    route_status = validate_route('users')
+    if route_status is True:
+        api_key = request.args.get('api_key')
+        if api_key is not None:
+            if validate_key(api_key):
+                try:
+                    requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                    requesting_user.all_users += 1
+                except AttributeError:
+                    return abort(500)
+                users = User.query.all()
+                users_dict = {users.index(user) + 1: {"username": user.name,
+                                                      "permissions":
+                                                          "Administrator" if user.admin is True else "Author"
+                                                          if user.author is True
+                                                          else "Registered User" if user.confirmed_email is True
+                                                          else None,
+                                                      "is_developer": True if
+                                                      ApiKey.query.filter_by(developer_id=user.id)
+                                                      is not None else False,
+                                                      "posts": {user.posts.index(post) + 1: get_post_dict(post) for post
+                                                                in
+                                                                user.posts},
+                                                      "comments": {
+                                                          user.comments.index(comment) + 1: {"comment": comment.comment,
+                                                                                             "on_post":
+                                                                                                 comment.parent_post
+                                                                                                     .title,
+                                                                                             "post_author":
+                                                                                                 comment.parent_post
+                                                                                                     .author.name}
+                                                          for comment in user.comments}}
+                              for user in users if user.confirmed_email is True}
+                db.session.commit()
+                return jsonify(response=users_dict)
+            else:
+                return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
         else:
             return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
     else:
-        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+        if route_status == 'blocked':
+            return jsonify(response={"Route Blocked": "The requested route is blocked."}), 503
+        else:
+            return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
+                                                                        " is unavailable."}), 500
 
 
 # @app.route('/api/copy/<int:user_id>')

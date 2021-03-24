@@ -10,7 +10,7 @@
             <div class="col-lg-8 col-md-10 mx-auto">
                 <div class="site-heading">
                     <h1 style="color: {{navbar}}">{{ title }}</h1>
-                    <span style="color: {{navbar}}" class="subheading">{{ subtitle }}</span>
+                    <span class="subheading" style="color: {{navbar}}">{{ subtitle }}</span>
                 </div>
             </div>
         </div>
@@ -131,7 +131,7 @@
                         {{all_posts[post]}} - {{all_posts["description"]}}
                     </h2>
                     {% endif %}
-                    {% if post != 'name' and post != 'description' %}
+                    {% if post != 'name' and post != 'description' and post != 'key_id' %}
                     <h2 class="post-title">
                         {{post}}
                     </h2>
@@ -144,7 +144,7 @@
 
                 </p>
             </div>
-            {% if post != "name" %}
+            {% if post != "name" and post != "key_id" %}
             <hr>
             {% endif %}
             {% endif %}
@@ -236,6 +236,15 @@
                         <li><a href="{{ url_for('user_page', user_id=user.id, current_mode='api') }}"><h4>View API
                             Information</h4></a>
                         </li>
+                        {% endif %}
+                        {% if current_user.is_authenticated and current_user.admin == True and current_mode == 'api' %}
+                        {% if all_posts["description"] != "Blocked" %}
+                        <li><a href="{{ url_for('block_key', key_id=all_posts['key_id']) }}"><h4>Block API Key</h4></a>
+                        </li>
+                        {% else %}
+                        <li><a href="{{ url_for('unblock_key', key_id=all_posts['key_id']) }}"><h4>Unblock API Key</h4></a>
+                        </li>
+                        {% endif %}
                         {% endif %}
                         {% if current_user.is_authenticated and current_user.email == user.email and report_exists and
                         current_mode != 'delete-report' or current_user.is_authenticated and current_user.admin and

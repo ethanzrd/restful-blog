@@ -36,6 +36,9 @@
                     {% else %}
                 <form action="{{ url_for(config_func) }}" method="post" novalidate>
                     {% endif %}
+                    {% if config_func == 'api_configuration' %}
+                    <p><strong>Select the allowed routes:</strong></p>
+                    {% endif %}
                 {{ ckeditor.load() }}
                 {{ wtf.quick_form(form=form, button_map={"submit": "primary"}) }}
             </form>

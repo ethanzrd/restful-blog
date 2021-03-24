@@ -27,29 +27,11 @@
         <div class="col-lg-8 col-md-10 mx-auto">
             {% with messages = get_flashed_messages() %}
             {% for message in messages %}
-            {% if message != 'This user does not exist.' and message != 'Could not find a user with the specified ID.'
-            and message != 'No support email specified, unable to send message.' and message != 'Malformed page request
-            for user profile.' and message != "Could not find a post with the specified ID." and message != "Could not
-            find a post with the specified ID." and message != 'Could not find a comment with the specified ID.' and
-            message != 'The author could not be found.' and message != "No unconfirmed users in the database." and
-            message != "Could not find an API key with the specified ID." and message != "You've already confirmed your
-            email."
-            and message != 'Your account is already in a pending deletion state.' and message != "Incorrect token,
-            please try again."
-            and message != "The token is expired, please try again."
-            and message != 'Could not find a deletion report with the specified ID.' %}
-            <div class="alert alert-success" role="alert" style="margin-bottom: 50px;">
+            <div class="alert alert-{{ category }}" role="alert" style="margin-bottom: 50px;">
                 <center>
                     <strong>{{ message }}</strong>
                 </center>
             </div>
-            {% else %}
-            <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
-                <center>
-                    <strong>{{ message }}</strong>
-                </center>
-            </div>
-            {% endif %}
             {% endfor %}
             {% endwith %}
             {% if user_table != "True" %}
