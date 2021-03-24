@@ -33,9 +33,9 @@
                             {% if comment == True %}
                             {% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and post.author.email == current_user.email or current_user.is_authenticated and original_comment.author.email == current_user.email %}
                             <a href="{{ url_for('delete_comment', comment_id=original_comment.id) }}"
-                               style="margin-top: 10px; text-decoration: none; color: {{navbar}};">Delete Comment</a>&emsp;<a
+                               style="margin-top: 10px; text-decoration: none; color: {{navbar}};">Delete Comment</a>&emsp;{% if current_user.is_authenticated and comment.author == current_user %}<a
                                     href="{{ url_for('edit_comment', comment_id=original_comment.id) }}"
-                                    style="margin-top: 10px; text-decoration: none; color: {{navbar}};">Edit Comment</a></span>
+                                    style="margin-top: 10px; text-decoration: none; color: {{navbar}};">Edit Comment</a>{% endif %}</span>
                         {% endif %}
                         {% endif %}
                         {% else %}
@@ -174,7 +174,7 @@
                             <div>
                                 <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;"><a
                                         href="{{ url_for('user_page', user_id=comment_item['author_id']) }}"
-                                        style="text-decoration: none;">{{ comment_item["author"] }}</a> {% if comment != True %}{{ comment_item["date"] }}{% endif %}{% if comment == True and comment_item == original_comment %} | Original Comment{% endif %}{% if comment != True %}<a
+                                        style="text-decoration: none;">{{ comment_item["author"] }}</a> | {{ comment_item["date"] }}{% if comment == True and comment_item == original_comment %} | Original Comment{% endif %}{% if comment != True %}<a
                                         href="{{ url_for('show_comment', comment_id=comment_item['comment_id'], deleted='True', post_id=post_id) }}"
                                         style="font-size: 15px; margin-top: 10px; text-decoration: none;">{% if comment_item["replies"] %}{% if comment_item["replies"]|length == 1 %} | View Reply{% else %} | View Replies ({{comment_item["replies"]|length}}){% endif %}{% else %} | View Comment{% endif %}</a>{% endif %}
                             <span style="margin-left: 20px;">{{ comment_item["comment"]|safe() }}</span>

@@ -26,6 +26,7 @@ import datetime as dt
 from flask_mail import Mail, Message
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import UnmappedInstanceError
+from sqlalchemy_json import mutable_json_type
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_gravatar import Gravatar
@@ -35,6 +36,7 @@ from html2text import html2text
 from sqlalchemy.dialects.postgresql import JSON
 import random
 import string
+from sqlalchemy.ext.mutable import MutableDict
 
 # ------------------ END BLOCK ------------------
 
@@ -182,7 +184,7 @@ class Reply(db.Model):
 class DeletedPost(db.Model):
     __tablename__ = 'deleted_posts'
     id = db.Column(db.Integer, primary_key=True)
-    json_column = db.Column(JSON, nullable=False)
+    json_column = db.Column(mutable_json_type(dbtype=JSON, nested=True), nullable=False)
 
 
 # ------ END ------
@@ -292,6 +294,19 @@ def clean_posts():
             reply = reply_item.parent_comment.post_id
         except (AttributeError, TypeError):
             db.session.delete(reply_item)
+    for post in DeletedPost.query.all():
+        print(post)
+        print(post.json_column)
+        print(post.json_column['comments'])
+        post.json_column["comments"] = [comment for comment in post.json_column['comments']
+                                        if User.query.filter_by(email=comment["author_email"]).first() is not None]
+        for comment in post.json_column["comments"]:
+            comment["replies"] = [reply for reply in comment["replies"] if User.query.filter_by(email=reply["author_email"]).first() is not None]
+        print(post.json_column['comments'])
+        print(post.json_column)
+        # for reply in comment["replies"]:
+        #     if User.query.filter_by(email=reply["author_email"]).first() is None:
+        #         comment["replies"].remove(reply)
 
 
 def generate_date():  # GET THE CURRENT DATE IN A STRING FORMAT
@@ -314,6 +329,15 @@ def get_user_comments(user_id):  # GET ALL COMMENTS ASSIGNED TO USER BY USER ID
         return []
 
 
+def send_mail(msg):
+    try:
+        mail.send(msg)
+        return True
+    except AssertionError:
+        flash("Sender Email is not specified, please contact the website staff.")
+        return redirect(url_for('home', category='danger'))
+
+
 def delete_notification(email, name, action_user, action_title, action_reason):
     msg = Message('Account Deleted', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
     msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
@@ -321,7 +345,7 @@ def delete_notification(email, name, action_user, action_title, action_reason):
                f'Your account was deleted by {action_user} due to "{action_title}".\n\n' \
                f'Deletion reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
                f'If you believe that a mistake was made, contact us by replying to this email or via our website.'
-    mail.send(msg)
+    send_mail(msg)
 
 
 def request_notification(email, name, decision):
@@ -332,7 +356,7 @@ def request_notification(email, name, decision):
                    f"Your Deletion Request was {decision}.\n\n" \
                    f"If you believe that a mistake was made, please contact us by replying to this email or via our" \
                    f" website."
-    mail.send(msg)
+    send_mail(msg)
 
 
 def set_notification(category, email, name, action_user, action_reason):
@@ -348,7 +372,7 @@ def set_notification(category, email, name, action_user, action_reason):
                f'Your account was set as an {category} by {action_user}.\n\n' \
                f'Reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
                f'Congratulations, if you have any inquires, contact us by replying to this email or via our website.'
-    mail.send(msg)
+    send_mail(msg)
 
 
 def remove_notification(category, email, name, action_user, action_reason):
@@ -365,7 +389,7 @@ def remove_notification(category, email, name, action_user, action_reason):
                f'Your account was removed as an {category} by {action_user}.\n\n' \
                f'Reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
                f'If you believe that a mistake was made, contact us by replying to this email or via our website.'
-    mail.send(msg)
+    send_mail(msg)
 
 
 def contact_notification(email, name, action_reason):
@@ -381,7 +405,7 @@ def contact_notification(email, name, action_reason):
                f'Message:\n\n{html2text(action_reason)}' \
                f'Note: This email was set as a support email for {get_name()}, if you are not familiar with the' \
                f' source of this email, please contact us by replying to this email or via our website.'
-    mail.send(msg)
+    send_mail(msg)
 
 
 def password_notification(email, name, date):
@@ -390,7 +414,7 @@ def password_notification(email, name, date):
                f" events that occurred in regards to your account.\n\n" \
                f'Your account password was changed at {date}.\n\n' \
                f"If this wasn't you, contact us by replying to this email or via our website."
-    mail.send(msg)
+    send_mail(msg)
 
 
 def admin_redirect():
@@ -997,6 +1021,7 @@ def staff_only(func):
 
 @app.route('/')
 def home():
+    data = None
     try:
         data = get_data(homepage=True)
     except OperationalError:
@@ -1015,6 +1040,7 @@ def page(page_id):
     view_filter = request.args.get('view_filter')
     settings_view = request.args.get('settings')
     mode = request.args.get('mode')
+    count = 0
     data = get_data(homepage=True)
     if deleted == 'True':
         blog_posts = get_deleted()
@@ -2241,9 +2267,11 @@ def verify_user(email, name):
     link = url_for('verify_email', token=token, email=email, _external=True)
     msg.body = f"Hello {name}, please go to this link to finalize your registration.\n\n" \
                f"{link}\n\nNote: If you're unfamiliar with the source of this email, simply ignore it."
-    mail.send(msg)
-    flash("A confirmation email has been sent to you.")
-    return redirect(url_for('home', category='success'))
+    status = send_mail(msg)
+    if status is True:
+        flash("A confirmation email has been sent to you.")
+        return redirect(url_for('home', category='success'))
+    return redirect(url_for('home', category='danger'))
 
 
 @app.route('/verify-forget', methods=['GET', 'POST'])
@@ -2260,7 +2288,7 @@ def verify_forget():
             msg.body = f"Hello {name}, you have recently requested a password change," \
                        f"please go to this link to reset your password.\n\n{link}\n\n" \
                        f"If this wasn't you, please contact us by replying to this email or via our website."
-            mail.send(msg)
+            send_mail(msg)
             flash("A password reset email has been sent to you.")
             return redirect(url_for('home', category='success'))
         else:
