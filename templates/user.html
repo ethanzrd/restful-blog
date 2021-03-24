@@ -210,14 +210,14 @@
                         <li><a href="{{ url_for('delete_user', user_id=user.id) }}"><h4>Delete User</h4></a>
                         </li>
                         {% if user.admin == True %}
-                        <li><a href="{{ url_for('remove_admin', user_id=user.id) }}"><h4>Remove User as
+                        <li><a href="{{ url_for('admin_auth', user_id=user.id, remove=True) }}"><h4>Remove User as
                             Administrator</h4></a>
                         </li>
                         {% endif %}
                         {% endif %}
                         {% if current_user.is_authenticated and current_user.admin == True and user.admin == False or
                         current_user.is_authenticated and user.admin == False and admin_count < 1 %}
-                        <li><a href="{{ url_for('make_admin', user_id=user.id) }}"><h4>Make Administrator</h4></a>
+                        <li><a href="{{ url_for('admin_auth', user_id=user.id) }}"><h4>Make Administrator</h4></a>
                         </li>
                         {% endif %}
                         {% if current_user.is_authenticated and current_user.admin == True and user.author == False and

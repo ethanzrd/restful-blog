@@ -43,7 +43,7 @@
             {% if remove != 'True' %}
             {% if category != 'author' %}
             {% if authorization != True %}
-            <form action="{{ url_for('make_admin', user_id=user_id, authorized=True) }}" method="post" novalidate>
+            <form action="{{ url_for('make_admin', token=token, user_id=user_id) }}" method="post" novalidate>
                 {% else %}
                 <form action="{{ url_for('admin_auth', user_id=user_id) }}" method="post" novalidate>
                     {% endif %}
@@ -59,7 +59,7 @@
                 {% else %}
                 {% if category != 'author' %}
                 {% if authorization != True %}
-                <form action="{{ url_for('remove_admin', user_id=user_id, authorized=True) }}" method="post" novalidate>
+                <form action="{{ url_for('remove_admin', token=token, user_id=user_id) }}" method="post" novalidate>
                     {% else %}
                     <form action="{{ url_for('admin_auth', user_id=user_id, remove=True) }}" method="post" novalidate>
                         {% endif %}

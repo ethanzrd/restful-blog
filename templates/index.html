@@ -12,7 +12,7 @@
             <div class="col-lg-8 col-md-10 mx-auto">
                 <div class="site-heading">
                     <h1 style="color: {{navbar}}">{{ title }}</h1>
-                    <span style="color: {{navbar}}" class="subheading">{{ subtitle }}</span>
+                    <span class="subheading" style="color: {{navbar}}">{{ subtitle }}</span>
                 </div>
             </div>
         </div>
@@ -27,151 +27,116 @@
         <div class="col-lg-8 col-md-10 mx-auto">
             {% with messages = get_flashed_messages() %}
             {% for message in messages %}
-            <div class="alert alert-{{ category }}" role="alert" style="margin-bottom: 50px;">
-                <center>
-                    <strong>{{ message }}</strong>
-                </center>
-            </div>
-            {% endfor %}
-            {% endwith %}
-            {% if user_table != "True" %}
-            {% if mode != 'users' %}
-            {% if deleted != "True" %}
-            {% if settings != "True" %}
-            {% if posts_count != 0 %}
-            {% for post in all_posts %}
-            <div class="post-preview">
-                <a href="{{ url_for('show_post', post_id=post.id) }}">
-                    <h2 class="post-title">
-                        {{post.title}}
-                    </h2>
-                    <h3 class="post-subtitle">
-                        {{post.subtitle}}
-                    </h3>
-                </a>
-                <p class="post-meta">Posted by
-                    <a href="{{ url_for('user_page', user_id=post.author.id) }}">{{post.author.name}}</a>
-                    on {{post.date}}
-            </div>
-            <hr>
-            {% endfor %}
-            {% else %}
-            {% set valid = False %}
-            {% for i in range(3): %}
-            <div class="post-preview">
-                <a href="#">
-                    <h2 class="post-title">
-                        Nothing to show here.
-                    </h2>
-                    <h3 class="post-subtitle">
-                        Looks like there's nothing here.
-                    </h3>
-                </a>
-                <p class="post-meta">
-                    <a href="#">You've reached a dead end, my friend.</a>
-                </p>
-            </div>
-            <hr>
-            {% endfor %}
-            {% endif %}
-            {% else %}
-            {% for error_name, error in errors.items() %}
+            {% if category == 'danger' %}
             <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
-                <center>
-                    <strong>{{ error_name }}</strong> | {{ error }}
-                </center>
-            </div>
-            {% endfor %}
-            {% if posts_count != 0 %}
-            {% for option in options %}
-            <div class="post-preview">
-                <a href="{{ url_for(option['func']) }}">
-                    <h2 class="post-title">
-                        {{ option["name"] }}
-                    </h2>
-                    <h3 class="post-subtitle">
-                        {{ option["desc"] }}
-                    </h3>
-                </a>
-                <p class="post-meta">
-                    <a href="#"></a>
-                </p>
-            </div>
-            <hr>
-            {% endfor %}
-            {% else %}
-            {% for i in range(3) %}
-            <div class="post-preview">
-                <a href="#">
-                    <h2 class="post-title">
-                        Nothing to show here.
-                    </h2>
-                    <h3 class="post-subtitle">
-                        Looks like there's nothing here.
-                    </h3>
-                </a>
-                <p class="post-meta">
-                    <a href="#">You've reached a dead end, my friend.</a>
-                </p>
-            </div>
-            <hr>
-            {% endfor %}
-            {% endif %}
-            {% endif %}
-            {% else %}
-            {% if posts_count != 0 %}
-            {% for post in deleted_posts %}
-            <div class="post-preview">
-                <a href="{{ url_for('show_post', post_id=post[0], deleted=True) }}">
-                    <h2 class="post-title">
-                        {{post[1]["post_title"]}}
-                    </h2>
-                    <h3 class="post-subtitle">
-                        {{post[1]["subtitle"]}}
-                    </h3>
-                </a>
-                <p class="post-meta">Posted by
-                    <a href="{{ url_for('user_page', user_id=post[1]['author_id']) }}">{{post[1]["author"]}}</a>
-                    on {{post[1]["date"]}}
-            </div>
-            <hr>
-            {% endfor %}
-            {% else %}
-            {% set valid = False %}
-            {% for i in range(3): %}
-            <div class="post-preview">
-                <a href="#">
-                    <h2 class="post-title">
-                        Nothing to show here.
-                    </h2>
-                    <h3 class="post-subtitle">
-                        Looks like there's nothing here.
-                    </h3>
-                </a>
-                <p class="post-meta">
-                    <a href="#">You've reached a dead end, my friend.</a>
-                </p>
+                {% else %}
+                <div class="alert alert-success" role="alert" style="margin-bottom: 50px;">
+                    {% endif %}
+                    <center>
+                        <strong>{{ message }}</strong>
+                    </center>
+                </div>
+                {% endfor %}
+                {% endwith %}
+                {% if user_table != "True" %}
+                {% if mode != 'users' %}
+                {% if deleted != "True" %}
+                {% if settings != "True" %}
+                {% if posts_count != 0 %}
+                {% for post in all_posts %}
+                <div class="post-preview">
+                    <a href="{{ url_for('show_post', post_id=post.id) }}">
+                        <h2 class="post-title">
+                            {{post.title}}
+                        </h2>
+                        <h3 class="post-subtitle">
+                            {{post.subtitle}}
+                        </h3>
+                    </a>
+                    <p class="post-meta">Posted by
+                        <a href="{{ url_for('user_page', user_id=post.author.id) }}">{{post.author.name}}</a>
+                        on {{post.date}}
+                </div>
+                <hr>
+                {% endfor %}
+                {% else %}
+                {% set valid = False %}
+                {% for i in range(3): %}
+                <div class="post-preview">
+                    <a href="#">
+                        <h2 class="post-title">
+                            Nothing to show here.
+                        </h2>
+                        <h3 class="post-subtitle">
+                            Looks like there's nothing here.
+                        </h3>
+                    </a>
+                    <p class="post-meta">
+                        <a href="#">You've reached a dead end, my friend.</a>
+                    </p>
+                </div>
+                <hr>
+                {% endfor %}
+                {% endif %}
+                {% else %}
+                {% for error_name, error in errors.items() %}
+                <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
+                    <center>
+                        <strong>{{ error_name }}</strong> | {{ error }}
+                    </center>
+                </div>
+                {% endfor %}
+                {% if posts_count != 0 %}
+                {% for option in options %}
+                <div class="post-preview">
+                    <a href="{{ url_for(option['func']) }}">
+                        <h2 class="post-title">
+                            {{ option["name"] }}
+                        </h2>
+                        <h3 class="post-subtitle">
+                            {{ option["desc"] }}
+                        </h3>
+                    </a>
+                    <p class="post-meta">
+                        <a href="#"></a>
+                    </p>
+                </div>
+                <hr>
+                {% endfor %}
+                {% else %}
+                {% for i in range(3) %}
+                <div class="post-preview">
+                    <a href="#">
+                        <h2 class="post-title">
+                            Nothing to show here.
+                        </h2>
+                        <h3 class="post-subtitle">
+                            Looks like there's nothing here.
+                        </h3>
+                    </a>
+                    <p class="post-meta">
+                        <a href="#">You've reached a dead end, my friend.</a>
+                    </p>
+                </div>
                 <hr>
                 {% endfor %}
                 {% endif %}
                 {% endif %}
                 {% else %}
                 {% if posts_count != 0 %}
-                {% for user in results %}
+                {% for post in deleted_posts %}
                 <div class="post-preview">
-                    <a href="{{ url_for('user_page', user_id=user.id) }}">
+                    <a href="{{ url_for('show_post', post_id=post[0], deleted=True) }}">
                         <h2 class="post-title">
-                            {{user.name}}
+                            {{post[1]["post_title"]}}
                         </h2>
+                        <h3 class="post-subtitle">
+                            {{post[1]["subtitle"]}}
+                        </h3>
                     </a>
-                    <span class="post-meta">
-                        Joined {{ user.join_date }}
-                    </span>
-                    <p class="post-meta" style="margin-top: 15px;">
-                        {% set taken = False %}
-                        {% if user.admin == True %}Website Administrator {% set taken = True %}{% endif %}
-                        {% if taken == False and user.author == True %}Author{% endif %}
-                    </p>
+                    <p class="post-meta">Posted by
+                        <a href="{{ url_for('user_page', user_id=post[1]['author_id']) }}">{{post[1]["author"]}}</a>
+                        on {{post[1]["date"]}}
                 </div>
                 <hr>
                 {% endfor %}
@@ -196,47 +161,26 @@
                     {% endif %}
                     {% else %}
                     {% if posts_count != 0 %}
-                    {% for user in users %}
+                    {% for user in results %}
                     <div class="post-preview">
-                        <a href="{{ url_for('user_page', user_id=user['id']) }}">
+                        <a href="{{ url_for('user_page', user_id=user.id) }}">
                             <h2 class="post-title">
-                                {{user["username"]}}
+                                {{user.name}}
                             </h2>
-                            <h3 class="post-subtitle">
-                                {% if user["permissions"] != None %}
-                                Number of Posts: {{user["posts_num"]}}
-                                {% endif %}
-                            </h3>
                         </a>
-                        <p class="post-meta" style="margin-top: 30px;">Permissions:{% if user["permissions"] != None %}
-                            {{user["permissions"]}}
-                            {% else %} Unconfirmed User{% endif %}
+                        <span class="post-meta">
+                        Joined {{ user.join_date }}
+                    </span>
+                        <p class="post-meta" style="margin-top: 15px;">
+                            {% set taken = False %}
+                            {% if user.admin == True %}Website Administrator {% set taken = True %}{% endif %}
+                            {% if taken == False and user.author == True %}Author{% endif %}
                         </p>
-                        {% if user["is_developer"] == True %}
-                        <p class="post-meta">
-                            <a href="{{ url_for('user_page', user_id=user['id'], current_mode='api') }}"
-                               style="text-decoration: none;">Developer
-                                Account</a>
-                        </p>
-                        {% endif %}
-                        {% if user["pending_deletion"] == True %}
-                        <p class="post-meta">
-                            <a href="{{ url_for('user_page', user_id=user['id'], current_mode='delete-report') }}"
-                               style="text-decoration: none;">Pending Deletion Request</a>
-                        </p>
-                        {% endif %}
-                        <p class="post-meta">
-                            Email address: {{user["email"]}}
-                        </p>
-                        {% if user["permissions"] != None %}
-                        <p class="post-meta">
-                            Joined on: {{user["joined_on"]}}
-                        </p>
-                        {% endif %}
                     </div>
                     <hr>
                     {% endfor %}
                     {% else %}
+                    {% set valid = False %}
                     {% for i in range(3): %}
                     <div class="post-preview">
                         <a href="#">
@@ -254,148 +198,212 @@
                         {% endfor %}
                         {% endif %}
                         {% endif %}
+                        {% else %}
+                        {% if posts_count != 0 %}
+                        {% for user in users %}
+                        <div class="post-preview">
+                            <a href="{{ url_for('user_page', user_id=user['id']) }}">
+                                <h2 class="post-title">
+                                    {{user["username"]}}
+                                </h2>
+                                <h3 class="post-subtitle">
+                                    {% if user["permissions"] != None %}
+                                    Number of Posts: {{user["posts_num"]}}
+                                    {% endif %}
+                                </h3>
+                            </a>
+                            <p class="post-meta" style="margin-top: 30px;">Permissions:{% if user["permissions"] != None
+                                %}
+                                {{user["permissions"]}}
+                                {% else %} Unconfirmed User{% endif %}
+                            </p>
+                            {% if user["is_developer"] == True %}
+                            <p class="post-meta">
+                                <a href="{{ url_for('user_page', user_id=user['id'], current_mode='api') }}"
+                                   style="text-decoration: none;">Developer
+                                    Account</a>
+                            </p>
+                            {% endif %}
+                            {% if user["pending_deletion"] == True %}
+                            <p class="post-meta">
+                                <a href="{{ url_for('user_page', user_id=user['id'], current_mode='delete-report') }}"
+                                   style="text-decoration: none;">Pending Deletion Request</a>
+                            </p>
+                            {% endif %}
+                            <p class="post-meta">
+                                Email address: {{user["email"]}}
+                            </p>
+                            {% if user["permissions"] != None %}
+                            <p class="post-meta">
+                                Joined on: {{user["joined_on"]}}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <hr>
+                        {% endfor %}
+                        {% else %}
+                        {% for i in range(3): %}
+                        <div class="post-preview">
+                            <a href="#">
+                                <h2 class="post-title">
+                                    Nothing to show here.
+                                </h2>
+                                <h3 class="post-subtitle">
+                                    Looks like there's nothing here.
+                                </h3>
+                            </a>
+                            <p class="post-meta">
+                                <a href="#">You've reached a dead end, my friend.</a>
+                            </p>
+                            <hr>
+                            {% endfor %}
+                            {% endif %}
+                            {% endif %}
 
-                        <!-- New Post -->
-                        <div class="clearfix">
-                            {% if current_id == 1 %}
-                            {% if deleted != "True" %}
-                            {% if current_user.is_authenticated %}
-                            {% if search != True %}
-                            {% set hr_valid = True %}
-                            {% if user_table != 'True' %}
-                            {% if settings != "True" %}
-                            <div class="dropdown">
-                                <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
-                                    PANEL
-                                    <span class="caret"></span></button>
-                                <ul class="dropdown-menu">
-                                    {% if current_user.admin == True or current_user.author == True %}
-                                    <li><a href="{{ url_for('add_post') }}"><h4>Add Post</h4></a></li>
-                                    <li><a href="{{ url_for('deleted_posts') }}"><h4>Recover Deleted Posts</h4></a></li>
-                                    {% endif %}
-                                    {% if current_user.admin == True %}
-                                    <li><a href="{{ url_for('settings', mode='admin') }}"><h4>Settings</h4></a></li>
-                                    {% endif %}
-                                    {% if current_user.is_authenticated %}
-                                    <li><a href="{{ url_for('settings') }}"><h4>Account Settings</h4></a></li>
-                                    {% endif %}
-                                    <li><a href="{{ url_for('user_page', user_id=current_user.id) }}"><h4>My
-                                        Profile</h4>
-                                    </a>
-                                    </li>
-                                </ul>
-                                {% endif %}
-                                {% else %}
+                            <!-- New Post -->
+                            <div class="clearfix">
+                                {% if current_id == 1 %}
+                                {% if deleted != "True" %}
+                                {% if current_user.is_authenticated %}
+                                {% if search != True %}
+                                {% set hr_valid = True %}
+                                {% if user_table != 'True' %}
+                                {% if settings != "True" %}
                                 <div class="dropdown">
                                     <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
                                         PANEL
                                         <span class="caret"></span></button>
                                     <ul class="dropdown-menu">
-                                        {% if current_view != None %}
-                                        <li><a href="{{ url_for('user_table') }}"><h4>View All Users</h4>
-                                        </a>{% endif %}
-                                            {% if current_view != 'admin' %}
-                                        <li><a href="{{ url_for('user_table', view_filter='admin') }}"><h4>View
-                                            Administrators Only</h4></a></li>
-                                        {% endif %}
-                                        {% if current_view != 'author' %}
-                                        <li><a href="{{ url_for('user_table', view_filter='author') }}"><h4>View Authors
-                                            Only</h4></a></li>
-                                        {% endif %}
-                                        {% if current_view != 'registered' %}
-                                        <li><a href="{{ url_for('user_table', view_filter='registered') }}"><h4>View
-                                            Registered Users Only</h4></a></li>
-                                        {% endif %}
-                                        {% if current_view != 'unconfirmed' %}
-                                        <li><a href="{{ url_for('user_table', view_filter='unconfirmed') }}"><h4>View
-                                            Unconfirmed Users Only</h4></a>
+                                        {% if current_user.admin == True or current_user.author == True %}
+                                        <li><a href="{{ url_for('add_post') }}"><h4>Add Post</h4></a></li>
+                                        <li><a href="{{ url_for('deleted_posts') }}"><h4>Recover Deleted Posts</h4></a>
                                         </li>
                                         {% endif %}
-                                        {% if current_view != 'pending' %}
-                                        <li><a href="{{ url_for('user_table', view_filter='pending') }}"><h4>View
-                                            Pending Deletion Users Only</h4></a>
-                                        </li>
+                                        {% if current_user.admin == True %}
+                                        <li><a href="{{ url_for('settings', mode='admin') }}"><h4>Settings</h4></a></li>
                                         {% endif %}
-                                        {% if unconfirmed == True %}
-                                        <li><a href="{{ url_for('delete_unconfirmed') }}"><h4>
-                                            Remove unconfirmed users</h4></a>
-                                        </li>
+                                        {% if current_user.is_authenticated %}
+                                        <li><a href="{{ url_for('settings') }}"><h4>Account Settings</h4></a></li>
                                         {% endif %}
+                                        <li><a href="{{ url_for('user_page', user_id=current_user.id) }}"><h4>My
+                                            Profile</h4>
+                                        </a>
+                                        </li>
                                     </ul>
                                     {% endif %}
-                                    {% endif %}
-                                    {% endif %}
-                                    {% endif %}
-                                    {% endif %}
-                                    {% if valid %}
-                                    {% if posts_count >= 3 %}
-                                    {% set hr_valid = True %}
-                                    {% if deleted != "True" and user_table != "True" and settings != "True" %}
-                                    <a class="btn btn-primary float-right"
-                                       href="{{ url_for('page', page_id=current_id + 1) }}">NEXT
-                                        PAGE
-                                        &rarr;</a>
                                     {% else %}
-                                    {% if deleted == "True" %}
-                                    <a class="btn btn-primary float-right"
-                                       href="{{ url_for('page', page_id=current_id + 1, deleted=True) }}">NEXT
-                                        PAGE
-                                        &rarr;</a>
-                                    {% endif %}
-                                    {% if user_table == "True" %}
-                                    <a class="btn btn-primary float-right"
-                                       href="{{ url_for('page', page_id=current_id + 1, table_page=True, view_filter=current_view) }}">NEXT
-                                        PAGE
-                                        &rarr;</a>
-                                    {% endif %}
-                                    {% if settings == "True" and current_id < 2 %}
-                                    <a class="btn btn-primary float-right"
-                                       href="{{ url_for('page', page_id=current_id + 1, settings=True, mode=mode) }}">NEXT
-                                        PAGE
-                                        &rarr;</a>
-                                    {% endif %}
-                                    {% endif %}
-                                    {% endif %}
-                                    {% endif %}
-                                    {% if current_id > 1 %}
-                                    {% set hr_valid = True %}
-                                    {% if deleted != "True" and user_table != "True" and settings != "True" %}
-                                    <a class="btn btn-primary float-left"
-                                       href="{{ url_for('page', page_id=current_id - 1) }}">&larr;
-                                        PREVIOUS PAGE</a>
-                                    {% else %}
-                                    {% if deleted == "True" %}
-                                    <a class="btn btn-primary float-left"
-                                       href="{{ url_for('page', page_id=current_id - 1, deleted=True) }}">&larr;
-                                        PREVIOUS PAGE</a>
-                                    {% endif %}
-                                    {% if user_table == "True" %}
-                                    <a class="btn btn-primary float-left"
-                                       href="{{ url_for('page', page_id=current_id - 1, table_page=True, view_filter=current_view) }}">&larr;
-                                        PREVIOUS PAGE</a>
-                                    {% endif %}
-                                    {% if settings == "True" %}
-                                    <a class="btn btn-primary float-left"
-                                       href="{{ url_for('page', page_id=current_id - 1, settings=True, mode=mode) }}">&larr;
-                                        PREVIOUS PAGE</a>
-                                    {% endif %}
-                                    {% endif %}
-                                    {% endif %}
+                                    <div class="dropdown">
+                                        <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
+                                            PANEL
+                                            <span class="caret"></span></button>
+                                        <ul class="dropdown-menu">
+                                            {% if current_view != None %}
+                                            <li><a href="{{ url_for('user_table') }}"><h4>View All Users</h4>
+                                            </a>{% endif %}
+                                                {% if current_view != 'admin' %}
+                                            <li><a href="{{ url_for('user_table', view_filter='admin') }}"><h4>View
+                                                Administrators Only</h4></a></li>
+                                            {% endif %}
+                                            {% if current_view != 'author' %}
+                                            <li><a href="{{ url_for('user_table', view_filter='author') }}"><h4>View
+                                                Authors
+                                                Only</h4></a></li>
+                                            {% endif %}
+                                            {% if current_view != 'registered' %}
+                                            <li><a href="{{ url_for('user_table', view_filter='registered') }}"><h4>View
+                                                Registered Users Only</h4></a></li>
+                                            {% endif %}
+                                            {% if current_view != 'unconfirmed' %}
+                                            <li><a href="{{ url_for('user_table', view_filter='unconfirmed') }}"><h4>
+                                                View
+                                                Unconfirmed Users Only</h4></a>
+                                            </li>
+                                            {% endif %}
+                                            {% if current_view != 'pending' %}
+                                            <li><a href="{{ url_for('user_table', view_filter='pending') }}"><h4>View
+                                                Pending Deletion Users Only</h4></a>
+                                            </li>
+                                            {% endif %}
+                                            {% if unconfirmed == True %}
+                                            <li><a href="{{ url_for('delete_unconfirmed') }}"><h4>
+                                                Remove unconfirmed users</h4></a>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                        {% endif %}
+                                        {% endif %}
+                                        {% endif %}
+                                        {% endif %}
+                                        {% endif %}
+                                        {% if valid %}
+                                        {% if posts_count >= 3 %}
+                                        {% set hr_valid = True %}
+                                        {% if deleted != "True" and user_table != "True" and settings != "True" %}
+                                        <a class="btn btn-primary float-right"
+                                           href="{{ url_for('page', page_id=current_id + 1) }}">NEXT
+                                            PAGE
+                                            &rarr;</a>
+                                        {% else %}
+                                        {% if deleted == "True" %}
+                                        <a class="btn btn-primary float-right"
+                                           href="{{ url_for('page', page_id=current_id + 1, deleted=True) }}">NEXT
+                                            PAGE
+                                            &rarr;</a>
+                                        {% endif %}
+                                        {% if user_table == "True" %}
+                                        <a class="btn btn-primary float-right"
+                                           href="{{ url_for('page', page_id=current_id + 1, table_page=True, view_filter=current_view) }}">NEXT
+                                            PAGE
+                                            &rarr;</a>
+                                        {% endif %}
+                                        {% if settings == "True" and current_id < 2 %}
+                                        <a class="btn btn-primary float-right"
+                                           href="{{ url_for('page', page_id=current_id + 1, settings=True, mode=mode) }}">NEXT
+                                            PAGE
+                                            &rarr;</a>
+                                        {% endif %}
+                                        {% endif %}
+                                        {% endif %}
+                                        {% endif %}
+                                        {% if current_id > 1 %}
+                                        {% set hr_valid = True %}
+                                        {% if deleted != "True" and user_table != "True" and settings != "True" %}
+                                        <a class="btn btn-primary float-left"
+                                           href="{{ url_for('page', page_id=current_id - 1) }}">&larr;
+                                            PREVIOUS PAGE</a>
+                                        {% else %}
+                                        {% if deleted == "True" %}
+                                        <a class="btn btn-primary float-left"
+                                           href="{{ url_for('page', page_id=current_id - 1, deleted=True) }}">&larr;
+                                            PREVIOUS PAGE</a>
+                                        {% endif %}
+                                        {% if user_table == "True" %}
+                                        <a class="btn btn-primary float-left"
+                                           href="{{ url_for('page', page_id=current_id - 1, table_page=True, view_filter=current_view) }}">&larr;
+                                            PREVIOUS PAGE</a>
+                                        {% endif %}
+                                        {% if settings == "True" %}
+                                        <a class="btn btn-primary float-left"
+                                           href="{{ url_for('page', page_id=current_id - 1, settings=True, mode=mode) }}">&larr;
+                                            PREVIOUS PAGE</a>
+                                        {% endif %}
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    {% if settings == "True" and mode != 'admin' %}
-                    {% set hr_valid = False %}
-                    {% endif %}
-                    {% if hr_valid %}
-                    <hr>
-                    {% endif %}
+                        {% if settings == "True" and mode != 'admin' %}
+                        {% set hr_valid = False %}
+                        {% endif %}
+                        {% if hr_valid %}
+                        <hr>
+                        {% endif %}
 
-                    {% include "footer.html" %}
+                        {% include "footer.html" %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+    {% endblock %}

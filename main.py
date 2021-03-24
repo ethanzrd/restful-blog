@@ -1,10 +1,6 @@
 # TODO ------------------ TODO BLOCK ------------------
 
-# TODO - Use NJSON as database for json files
 # TODO - Verify contact support email before usage using confirmation links
-# TODO - Check if HTTP requests match with configuration functions
-# TODO - Create special account
-# TODO - Set comment names to profile links
 
 # ------------------ END BLOCK ------------------
 
@@ -36,7 +32,6 @@ from html2text import html2text
 from sqlalchemy.dialects.postgresql import JSON
 import random
 import string
-from sqlalchemy.ext.mutable import MutableDict
 
 # ------------------ END BLOCK ------------------
 
@@ -301,7 +296,8 @@ def clean_posts():
         post.json_column["comments"] = [comment for comment in post.json_column['comments']
                                         if User.query.filter_by(email=comment["author_email"]).first() is not None]
         for comment in post.json_column["comments"]:
-            comment["replies"] = [reply for reply in comment["replies"] if User.query.filter_by(email=reply["author_email"]).first() is not None]
+            comment["replies"] = [reply for reply in comment["replies"] if
+                                  User.query.filter_by(email=reply["author_email"]).first() is not None]
         print(post.json_column['comments'])
         print(post.json_column)
         # for reply in comment["replies"]:
@@ -719,6 +715,16 @@ def internal_error(e):
                            name=get_name()), 500
 
 
+@app.errorhandler(400)
+def bad_request(e):
+    return render_template('http-error.html', background_image=get_background('website_configuration'),
+                           navbar=get_navbar(),
+                           error="400 - Bad Request", error_description="The browser sent a request that the server"
+                                                                        " could not understand,"
+                                                                        " we apologize for the inconvenience.",
+                           name=get_name()), 500
+
+
 # ------------------ END ------------------
 
 
@@ -1021,13 +1027,14 @@ def staff_only(func):
 
 @app.route('/')
 def home():
+    category = request.args.get('category')
     data = None
     try:
         data = get_data(homepage=True)
     except OperationalError:
         db.create_all()
     return render_template("index.html", all_posts=get_posts()[:3], posts_count=len(get_posts()), current_id=1,
-                           title=data[0], subtitle=data[1], name=get_name(), category=request.args.get('category'),
+                           title=data[0], subtitle=data[1], name=get_name(), category=category,
                            background_image=get_background("website_configuration"), navbar=get_navbar())
 
 
@@ -1884,61 +1891,81 @@ def delete_unconfirmed():
     return redirect(url_for("user_table"))
 
 
-@app.route('/admin/<int:user_id>', methods=['GET', 'POST'])
+@app.route('/admin/<token>', methods=['GET', 'POST'])
 @login_required
-def make_admin(user_id):
+def make_admin(token):
     if get_admin_count() > 0:
         admin_redirect()
-    user = User.query.get(user_id)
-    authorized = request.args.get('authorized')
-    form = MakeUserForm()
-    if user is not None:
-        if user.admin is not True:
-            if authorized != "True":
-                return redirect(url_for('admin_auth', user_id=user_id))
-            if form.validate_on_submit():
-                set_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
-                user.author = False
-                user.admin = True
-                db.session.commit()
-                flash("The user has been set as an administrator, a notification has been sent to the user.")
-                return redirect(url_for('user_page', user_id=user_id))
-            return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
-                                   name=get_name(), background_image=get_background('website_configuration'),
-                                   category='admin', navbar=get_navbar())
-        else:
-            flash("This user is already an administrator.")
-            return redirect(url_for('user_page', user_id=user_id))
-    else:
-        flash("Could not find a user with the specified ID.")
+    try:
+        confirmation = serializer.loads(token, salt='make-auth', max_age=800)
+    except SignatureExpired:
+        flash("The token is expired, please try again.")
         return redirect(url_for('home', category='danger'))
+    except BadTimeSignature:
+        flash("Incorrect token, please try again.")
+        return redirect(url_for('home', category='danger'))
+    else:
+        try:
+            user_id = int(request.args.get('user_id'))
+        except (TypeError, ValueError):
+            return abort(400)
+        user = User.query.get(user_id)
+        form = MakeUserForm()
+        if user is not None:
+            if user.admin is not True:
+                if form.validate_on_submit():
+                    set_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
+                    user.author = False
+                    user.admin = True
+                    db.session.commit()
+                    flash("The user has been set as an administrator, a notification has been sent to the user.")
+                    return redirect(url_for('user_page', user_id=user_id))
+                return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
+                                       name=get_name(), background_image=get_background('website_configuration'),
+                                       category='admin', navbar=get_navbar(), token=token)
+            else:
+                flash("This user is already an administrator.")
+                return redirect(url_for('user_page', user_id=user_id))
+        else:
+            flash("Could not find a user with the specified ID.")
+            return redirect(url_for('home', category='danger'))
 
 
-@app.route('/admin-remove/<int:user_id>', methods=['GET', 'POST'])
+@app.route('/admin-remove/<token>', methods=['GET', 'POST'])
 @admin_only
-def remove_admin(user_id):
-    user = User.query.get(user_id)
-    authorized = request.args.get('authorized')
-    form = MakeUserForm()
-    if user is not None:
-        if user.admin is True:
-            if authorized != "True":
-                return redirect(url_for('admin_auth', user_id=user_id, remove=True))
-            if form.validate_on_submit():
-                remove_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
-                user.admin = False
-                db.session.commit()
-                flash("The user has been removed as an administrator, a notification has been sent to the user.")
-                return redirect(url_for('user_page', user_id=user_id))
-            return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
-                                   name=get_name(), background_image=get_background('website_configuration'),
-                                   category='admin', remove="True", navbar=get_navbar())
-        else:
-            flash("This user is not an administrator.")
-            return redirect(url_for('user_page', user_id=user_id))
-    else:
-        flash("Could not find a user with the specified ID.")
+def remove_admin(token):
+    try:
+        confirmation = serializer.loads(token, salt='remove-auth', max_age=800)
+    except SignatureExpired:
+        flash("The token is expired, please try again.")
         return redirect(url_for('home', category='danger'))
+    except BadTimeSignature:
+        flash("Incorrect token, please try again.")
+        return redirect(url_for('home', category='danger'))
+    else:
+        try:
+            user_id = int(request.args.get('user_id'))
+        except (TypeError, ValueError):
+            return abort(400)
+        user = User.query.get(user_id)
+        form = MakeUserForm()
+        if user is not None:
+            if user.admin is True:
+                if form.validate_on_submit():
+                    remove_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
+                    user.admin = False
+                    db.session.commit()
+                    flash("The user has been removed as an administrator, a notification has been sent to the user.")
+                    return redirect(url_for('user_page', user_id=user_id))
+                return render_template('admin-form.html', form=form, user_name=user.name, user_id=user_id,
+                                       name=get_name(), background_image=get_background('website_configuration'),
+                                       category='admin', remove="True", navbar=get_navbar(), token=token)
+            else:
+                flash("This user is not an administrator.")
+                return redirect(url_for('user_page', user_id=user_id))
+        else:
+            flash("Could not find a user with the specified ID.")
+            return redirect(url_for('home', category='danger'))
 
 
 @app.route('/author/<int:user_id>', methods=['GET', 'POST'])
@@ -2062,10 +2089,21 @@ def user_page(user_id):
 @admin_only
 def delete_user(user_id):
     user = User.query.get(user_id)
-    authorized = request.args.get('authorized')
     if user is not None:
-        if user.admin is True and authorized != "True":
-            return redirect(url_for('authorization', user_id=user_id))
+        if user.admin is True:
+            try:
+                if request.args.get('token') is not None:
+                    confirmation = serializer.loads(request.args.get('token'), salt='delete-auth', max_age=800)
+                else:
+                    return redirect(url_for('authorization', user_id=user_id))
+            except SignatureExpired:
+                flash("The token is expired, please try again.")
+                return redirect(url_for('home', category='danger'))
+            except BadTimeSignature:
+                flash("Incorrect token, please try again.")
+                return redirect(url_for('home', category='danger'))
+            except TypeError:
+                return abort(400)
         form = DeleteForm()
         if form.validate_on_submit():
             email = user.email
@@ -2079,7 +2117,8 @@ def delete_user(user_id):
             db.session.commit()
             return redirect(url_for('home', category='success'))
         return render_template('delete.html', form=form, user_id=user_id, name=get_name(), user_name=user.name,
-                               background_image=get_background('website_configuration'), navbar=get_navbar())
+                               background_image=get_background('website_configuration'), navbar=get_navbar(),
+                               token=request.args.get('token'))
 
     else:
         flash("This user does not exist.")
@@ -2215,7 +2254,9 @@ def authorization():
             flash("Authentication Password is not available. Deletion cannot be performed at this time.")
             return redirect(url_for('home', category='danger'))
         if check_password_hash(secret_password, form.code.data):
-            return redirect(url_for('delete_user', user_id=user_id, authorized=True))
+            token = serializer.dumps(current_user.email, salt='delete-auth')
+            link = url_for('delete_user', token=token, email=current_user.email, user_id=user_id)
+            return redirect(link)
         else:
             flash("Incorrect authorization code.")
     return render_template('delete.html', form=form, authorization=True, user_id=user_id, name=get_name(),
@@ -2246,9 +2287,13 @@ def admin_auth():
             return redirect(url_for('home', category='danger'))
         if check_password_hash(secret_password, form.code.data):
             if remove != 'True':
-                return redirect(url_for('make_admin', user_id=user_id, authorized=True))
+                token = serializer.dumps(current_user.email, salt='make-auth')
+                link = url_for('make_admin', token=token, email=current_user.email, user_id=user_id)
+                return redirect(link)
             else:
-                return redirect(url_for('remove_admin', user_id=user_id, authorized=True))
+                token = serializer.dumps(current_user.email, salt='remove-auth')
+                link = url_for('remove_admin', token=token, email=current_user.email, user_id=user_id)
+                return redirect(link)
         else:
             flash("Incorrect authorization code.")
     return render_template('admin-form.html', form=form, authorization=True, user_id=user_id, name=get_name(),
@@ -2268,10 +2313,10 @@ def verify_user(email, name):
     msg.body = f"Hello {name}, please go to this link to finalize your registration.\n\n" \
                f"{link}\n\nNote: If you're unfamiliar with the source of this email, simply ignore it."
     status = send_mail(msg)
-    if status is True:
-        flash("A confirmation email has been sent to you.")
-        return redirect(url_for('home', category='success'))
-    return redirect(url_for('home', category='danger'))
+    category = "success" if status is True else "danger"
+    flash("A confirmation email has been sent to you.") if status is True else \
+        flash("No sender specified, please contact the website staff.")
+    return redirect(url_for('home', category=category))
 
 
 @app.route('/verify-forget', methods=['GET', 'POST'])
@@ -2372,7 +2417,7 @@ def register():
 def verify_email(token):
     email = request.args.get('email')
     try:
-        confirmation = serializer.loads(token, salt='email-verify', max_age=300)
+        confirmation = serializer.loads(token, salt='email-verify', max_age=3600)
     except SignatureExpired:
         flash("The token is expired, please try again.")
         return redirect(url_for('register'))
