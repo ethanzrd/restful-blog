@@ -24,7 +24,7 @@ Features:
 
 - Administrators can permanently delete posts from the blog's recovery system.
 
-- Authentication System: For administrators to delete an administrator, or set and remove a user as an administrator, they must be able to provide a valid authentication password. This will increase the overall security of the website and reduce the likelihood of unwanted acts by website administrators. Whenever a user is set/removed as an administrator, a notification will be sent to the specified support email as well, for the sake of logs.
+- Authentication System: For administrators to delete an administrator, or set and remove a user as an administrator, they must be able to provide a valid authentication password. This will increase the overall security of the website and reduce the likelihood of unwanted or wrongful acts by website administrators. Whenever a user is set/removed as an administrator, a notification will be sent to the specified support email as well, for the sake of logs.
 
 - User Table: Visualize your user database effortlessly, within a few clicks of a button. Be able to see a comprehensive list of all your blog users, with important details altogether.
 
