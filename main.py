@@ -686,9 +686,15 @@ def get_background(configuration='website_configuration'):
             return dict(background_image=get_data()[configuration]["background_image"])
         else:
             try:
-                return get_data()[configuration]["background_image"]
+                background = get_data()[configuration]["background_image"]
+                if background == '':
+                    return get_data()["website_configuration"]["background_image"]
+                return background
             except (KeyError, TypeError):
-                return dict(background_image=get_data()["website_configuration"]["background_image"])
+                try:
+                    return dict(background_image=get_data()["website_configuration"]["background_image"])
+                except (KeyError, TypeError):
+                    return dict(background_image="")
     except (KeyError, TypeError):
         return dict(background_image="")
 
