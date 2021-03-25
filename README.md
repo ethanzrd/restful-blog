@@ -4,6 +4,10 @@
 
 Features:
 
+- Configure your website effortlessly. Administrators will be able to configure the primary elements blog ranging from general website configuration to the blog's API configuration, without code whatsoever.
+
+- Social Icon Configuration. Administrators can configure the social icons at the website configuration setting, and choose which ones will be displayed with the appropriate links. Available social icons: Twitter, GitHub, Facebook, Instagram, YouTube, LinkedIn, Dev.
+
 - Registered users can comment on posts.
 
 - Manage your website staff by having the option to set users as administrators, and automatically notify them with an email that includes a new administrator report, which will be sent to both the website support email and the new administrator for the sake of logs.
@@ -48,3 +52,5 @@ Known Issues:
 - Some flashed messages appear with no background.
 
 If you have any suggestions or inquires, feel free to contact me.
+
+
