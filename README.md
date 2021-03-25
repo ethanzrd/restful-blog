@@ -6,9 +6,7 @@ Features:
 
 - Configure your website effortlessly. Administrators will be able to configure the primary elements blog ranging from general website configuration to the blog's API configuration, without code whatsoever.
 
-- Social Icon Configuration. Administrators can configure the social icons at the website configuration setting, and choose which ones will be displayed with the appropriate links.
-
-Available social icons: Twitter, GitHub, Facebook, Instagram, YouTube, LinkedIn, Dev.
+- Social Icon Configuration. Administrators can configure the social icons at the website configuration setting, and choose which ones will be displayed with the appropriate links. Available social icons: Twitter, GitHub, Facebook, Instagram, YouTube, LinkedIn, Dev.
 
 - Registered users can comment on posts.
 
