@@ -962,7 +962,7 @@ class ContactConfigForm(FlaskForm):
 class AboutConfigForm(FlaskForm):
     page_heading = StringField("About Page Title", validators=[DataRequired()])
     page_subheading = StringField("About Page Subtitle", validators=[DataRequired()])
-    background_image = StringField("Contact Page Background Image", validators=[URL()])
+    background_image = StringField("About Page Background Image", validators=[URL()])
     page_content = CKEditorField("About Page Content", validators=[DataRequired()])
     submit = SubmitField("Save changes", render_kw={"style": "margin-top: 20px;"})
 
@@ -1241,12 +1241,20 @@ def about():
         heading = "About us"
         subheading = "About what we do."
         content = "For now, this page remains empty."
+        background_image = get_background()
     else:
-        heading = about_config['page_heading']
-        subheading = about_config['page_subheading']
-        content = about_config['page_content']
+        try:
+            heading = about_config['page_heading']
+            subheading = about_config['page_subheading']
+            content = about_config['page_content']
+            background_image = about_config["background_image"]
+        except KeyError:
+            heading = "About us"
+            subheading = "About what we do."
+            content = "For now, this page remains empty."
+            background_image = get_background()
     return render_template("about.html", heading=heading, subheading=subheading, content=content,
-                           background_image=get_background('about_configuration'))
+                           background_image=background_image)
 
 
 @app.route("/contact", methods=['GET', 'POST'])
