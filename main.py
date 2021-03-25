@@ -1841,7 +1841,7 @@ def about_configuration():
     if form.validate_on_submit():
         new_data = {"about_configuration": {
             "page_heading": form.page_heading.data,
-            "page_subheading": form.page_heading.data,
+            "page_subheading": form.page_subheading.data,
             "page_content": form.page_content.data,
             "background_image": form.background_image.data
         }
