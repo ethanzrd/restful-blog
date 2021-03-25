@@ -3,39 +3,48 @@
 {% block content %}
 {% include "header.html" %}
 
-  <!-- Page Header -->
-  <header class="masthead" style="background-image: url({{ background_image }})">
+<!-- Page Header -->
+<header class="masthead" style="background-image: url({{ background_image }})">
     <div class="overlay"></div>
     <div class="container">
-      <div class="row">
-        <div class="col-lg-8 col-md-10 mx-auto">
-          <div class="page-heading">
-            <h1 style="color: {{navbar}}">{{ heading }}</h1>
-            <span style="color: {{navbar}}" class="subheading">{{ subheading }}</span>
-          </div>
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="page-heading">
+                    <h1 style="color: {{navbar}}">{{ heading }}</h1>
+                    <span class="subheading" style="color: {{navbar}}">{{ subheading }}</span>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </header>
+</header>
 
-  <!-- Main Content -->
-  <div class="container">
+<!-- Main Content -->
+<div class="container">
     <div class="row">
-      <div class="col-lg-8 col-md-10 mx-auto" style="line-height: 2.5;">
-        <p>{{ description }}</p>
-        <!-- Contact Form - Enter your email address on line 19 of the mail/contact_me.php file to make this form work. -->
-        <!-- WARNING: Some web hosts do not allow emails to be sent through forms to common mail hosts like Gmail or Yahoo. It's recommended that you use a private domain email address! -->
-        <!-- To use the contact form, your site must be on a live web host with PHP! The form will not work locally! -->
-        <form action="contact" method="post" novalidate>
-          {{ ckeditor.load() }}
-          {{ wtf.quick_form(form, button_map={'submit': 'primary'}) }}
-        </form>
-      </div>
+        <div class="col-lg-8 col-md-10 mx-auto" style="line-height: 2.5;">
+            {% if valid != True %}
+            <div class="alert alert-danger" role="alert" style="margin-bottom: 50px;">
+                <center>
+                    <strong>Warning | No support email specified, messages will not be received.</strong>
+                </center>
+            </div>
+            {% endif %}
+            {% if valid %}
+            <p>{{ description }}</p>
+            {% endif %}
+            <!-- Contact Form - Enter your email address on line 19 of the mail/contact_me.php file to make this form work. -->
+            <!-- WARNING: Some web hosts do not allow emails to be sent through forms to common mail hosts like Gmail or Yahoo. It's recommended that you use a private domain email address! -->
+            <!-- To use the contact form, your site must be on a live web host with PHP! The form will not work locally! -->
+            <form action="contact" method="post" novalidate>
+                {{ ckeditor.load() }}
+                {% if valid %}
+                {{ wtf.quick_form(form, button_map={'submit': 'primary'}) }}
+                {% endif %}
+            </form>
+        </div>
     </div>
-  </div>
+</div>
+<hr>
 
-  <hr>
-
-  {% include "footer.html" %}
-
+{% include "footer.html" %}
 {% endblock %}

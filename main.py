@@ -39,7 +39,7 @@ import string
 # ------------------ APPLICATION CONFIG BLOCK ------------------
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", 's9TIRvlsjBr79quz')
 ckeditor = CKEditor(app)
 Bootstrap(app)
 months = [(i, dt.date(2008, i, 1).strftime('%B')) for i in range(1, 13)]
@@ -47,11 +47,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 587
-app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
-app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
+app.config["MAIL_USERNAME"] = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD', 'skkkyasbmefyppjk')
 app.config['MAIL_USE_TLS'] = True
 app.config['JSON_SORT_KEYS'] = False
-EMAIL = os.environ.get('EMAIL')
+EMAIL = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager()
@@ -393,6 +393,9 @@ def contact_notification(email, name, action_reason):
         support_email = get_data()["contact_configuration"]["support_email"]
     except KeyError:
         return False
+    else:
+        if support_email is None:
+            return False
     msg = Message(f"{get_name()} - Contact Inquiry", sender=os.environ.get('EMAIL', EMAIL), recipients=[support_email])
     msg.body = f"This is an automatic email from {get_name()} to notify you of a" \
                f" user inquiry.\n\n" \
@@ -410,6 +413,16 @@ def password_notification(email, name, date):
                f" events that occurred in regards to your account.\n\n" \
                f'Your account password was changed at {date}.\n\n' \
                f"If this wasn't you, contact us by replying to this email or via our website."
+    send_mail(msg)
+
+
+def support_notification(email, link):
+    msg = Message(f'Email set as support email', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
+    msg.body = f"Hello, this is an automatic email from {get_name()}." \
+               f" This email was specified as the support email for {get_name()} at {generate_date()}." \
+               f" To confirm and set this email as the support email, please go to the link below.\n\n" \
+               f'{link}.\n\n' \
+               f"Note: If you are unfamiliar with the source of this email, simply ignore it."
     send_mail(msg)
 
 
@@ -1215,8 +1228,10 @@ def contact():
     try:
         support_email = get_data()["contact_configuration"]["support_email"]
     except KeyError:
-        flash("Warning | No support email specified, messages will not be received.")
         valid = False
+    else:
+        if support_email is None:
+            valid = False
     try:
         contact_config = get_data()['contact_configuration']
     except KeyError:
@@ -1243,11 +1258,11 @@ def contact():
         return render_template("contact.html", form=form, heading=heading, subheading=subheading,
                                description=description,
                                background_image=get_background('contact_configuration'), name=get_name(),
-                               navbar=get_navbar())
+                               navbar=get_navbar(), valid=valid)
     return render_template("contact.html", heading=heading, subheading=subheading,
                            description=description,
                            background_image=get_background('contact_configuration'), name=get_name(),
-                           navbar=get_navbar())
+                           navbar=get_navbar(), valid=valid)
 
 
 # ------------------ END BLOCK ------------------
@@ -1750,16 +1765,27 @@ def contact_configuration():
     except KeyError:
         form = ContactConfigForm()
     if form.validate_on_submit():
+        new_email = False
+        try:
+            support_email = data["contact_configuration"]["support_email"]
+        except KeyError:
+            support_email = ''
+        if form.support_email.data != support_email:
+            token = serializer.dumps(form.support_email.data, salt='support-verify')
+            link = url_for('verify_support', token=token, email=form.support_email.data, _external=True)
+            support_notification(form.support_email.data, link)
+            new_email = True
         new_data = {"contact_configuration": {
             "page_heading": form.page_heading.data,
             "page_subheading": form.page_subheading.data,
             "page_description": form.page_description.data,
             "background_image": form.background_image.data,
-            "support_email": form.support_email.data
+            "support_email": None if new_email is True else form.support_email.data
         }
         }
         data.update(new_data)
         update_data(data)
+        flash("A confirmation email has been sent to the specified support email.") if new_email is True else None
         return redirect(url_for('settings', mode='admin'))
     return render_template('config.html', config_title="Contact Page Configuration",
                            config_desc="Configure primary elements of the contact page.", form=form,
@@ -2441,6 +2467,32 @@ def verify_email(token):
         else:
             flash("This user does not exist.")
             return redirect(url_for('register'))
+
+
+@app.route('/verify-support/<token>')
+def verify_support(token):
+    email = request.args.get('email')
+    try:
+        confirmation = serializer.loads(token, salt='support-verify', max_age=3600)
+    except SignatureExpired:
+        flash("The token is expired, please try again.")
+        return redirect(url_for('register'))
+    except BadTimeSignature:
+        flash("Incorrect token, please try again.")
+        return redirect(url_for('register'))
+    else:
+        config_data = get_data()
+        try:
+            if config_data["contact_configuration"]["support_email"] != email:
+                config_data["contact_configuration"]["support_email"] = email
+                update_data(config_data)
+                flash("This email was successfully set as the support email.")
+                return redirect(url_for('home', category='success'))
+            else:
+                flash("This email is already set as the support email.")
+                return redirect(url_for('home', category='danger'))
+        except KeyError:
+            return abort(500)
 
 
 @app.route('/login', methods=['GET', 'POST'])
