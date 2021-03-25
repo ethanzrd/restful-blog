@@ -14,7 +14,7 @@ Features:
 
 - Administrators can remove users (to remove other administrators you must be able to provide a valid authentication password), and provide a report as to why the user was deleted, and automatically notify the user.
 
-- Be able to post and edit new posts as an administrator and also remove posts, with the ability to recover deleted posts in their full form, including all comments.
+- Be able to post and edit new posts as an administrator and also remove posts, with the ability to recover deleted posts in their full form, including all comments and replies.
 
 - Be able to view other user's profiles, and all of their comments and posts.
 
