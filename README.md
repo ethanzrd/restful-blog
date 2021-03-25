@@ -18,7 +18,7 @@ Features:
 
 - All of your passwords are hashed and secured.
 
-- Email confirmation is enabled, registered users that have not confirmed their email will not be able to use the website as a registered user until they do.
+- Email confirmation is enabled, registered users that have not confirmed their email will not be able to use the website as a registered user until they do. Support Email confirmation is also enabled, and administrators will not be able to set an email address as the support email until it's confirmed.
 
 - Author Permissions: Allow users to post new posts, recover posts, and delete posts. Note that these actions can only be on their posts, and they do not have any control over other user's posts, and they cannot recover other user's posts. They can only delete comments in their posts.
 
