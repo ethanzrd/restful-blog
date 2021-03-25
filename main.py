@@ -869,7 +869,7 @@ class ContactForm(FlaskForm):
     name = StringField("Name", validators=[DataRequired()])
     email = StringField("Email", validators=[DataRequired(), Email()])
     message = CKEditorField("Your Message", validators=[DataRequired()])
-    submit = SubmitField("Send", render_kw={"style": "margin-top: 20px;"})
+    submit = SubmitField("Send Message", render_kw={"style": "margin-top: 20px;"})
 
 
 # ------ END ------
