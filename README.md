@@ -24,6 +24,8 @@ Features:
 
 - Administrators can permanently delete posts from the blog's recovery system.
 
+- Authentication System: For administrators to delete an administrator, or set and remove a user as an administrator, they must be able to provide a valid authentication password. This will increase the overall security of the website and reduce the likelihood of unwanted or wrongful acts by website administrators. Whenever a user is set/removed as an administrator, a notification will be sent to the specified support email as well, for the sake of logs.
+
 - User Table: Visualize your user database effortlessly, within a few clicks of a button. Be able to see a comprehensive list of all your blog users, with important details altogether.
 
 - API & Developer Account: An account that generated an API key will automatically become a Developer Account, Developer Accounts will have a new section in their profiles called "View API Information" which will allow them to view their key details, and request statistics. This section will be allowed to be seen by the user and by administrators only. Administrators can block certain API keys, and enable/disable certain API routes via the API Configuration option in the website settings menu.
@@ -34,11 +36,9 @@ Features:
 
 - Edit Comments: Users now can edit their comments via the comment page.
 
-- Forgot Password: Users have the ability to recover their password after failed login attempts.
+- Forgot Password: Users can recover their password after failed login attempts.
 
 Plans:
-
-- Improved authentication system.
 
 - Onsite API Documentation.
 
