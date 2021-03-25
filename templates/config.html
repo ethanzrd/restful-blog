@@ -29,6 +29,9 @@
             </div>
             {% endfor %}
             {% endwith %}
+            {% if config_func == 'web_configuration' %}
+            <p><strong>To remove social icons, type None in the social links fields.</strong></p>
+            {% endif %}
             {% if config_func == 'edit_comment' %}
             <form action="{{ url_for(config_func, comment_id=comment_id) }}" method="post" novalidate>
                 {% elif config_func == 'edit_reply' %}
