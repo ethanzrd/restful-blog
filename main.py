@@ -2738,57 +2738,10 @@ def api_all_users():
         else:
             return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
                                                                         " is unavailable."}), 500
-
-
-# @app.route('/api/copy/<int:user_id>')
-# @login_required
-# def copy_key(user_id):
-#     if current_user.id == user_id or current_user.admin is True:
-#         requested_api = ApiKey.query.filter_by(developer_id=user_id).first()
-#         if requested_api is not None:
-#             try:
-#                 pyperclip.copy(requested_api.api_key)
-#             except pyperclip.PyperclipException:
-#                 flash("Could not find a copy mechanism for your OS.")
-#                 return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
-#
-#             flash("API Key copied to clipboard.")
-#             return redirect(url_for('user_page', user_id=user_id, current_mode='api'))
-#         else:
-#             flash("Could not find an API key with the specified ID.")
-#             return redirect(url_for(user_page, user_id=current_user.id))
-#     else:
-#         abort(403)
-
-
-# ------------------ END BLOCK ------------------
-
-# ------------------ MISC BLOCK ------------------
-
-# [db.session.add(Comment(author=User.query.filter_by(email=comment["author_email"]).first(),
-#                         post_id=new_post.id,
-#                         parent_post=new_post,
-#                         comment=comment["comment"], date=comment["date"])) for comment in comments]
-#                         post_id=new_post.id,
-#                         parent_post=new_post,
-#                         comment=comment["comment"], date=comment["date"])) for comment in comments]
-
-# ------------------ END BLOCK ------------------
+          
+          
 
 # ------------------ SERVER CONFIG ------------------
 
-
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-# 2021-03-25T12:53:01.460923+00:00 app[web.1]: 10.5.177.43 - - [25/Mar/2021:12:53:01 +0000] "GET /static/vendor/bootstrap/js/bootstrap.bundle.min.js HTTP/1.1" 200 0 "https://hridaya-agrawal.herokuapp.com/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36"
-# 2021-03-25T12:53:01.474313+00:00 heroku[router]: at=info method=GET path="/static/vendor/bootstrap/js/bootstrap.bundle.min.js" host=hridaya-agrawal.herokuapp.com request_id=006bce0a-0fb6-419a-b773-0a24a42c4378 fwd="5.29.38.179" dyno=web.1 connect=1ms service=17ms status=200 bytes=81423 protocol=https
-# 2021-03-25T12:53:03.532748+00:00 app[web.1]: 10.5.177.43 - - [25/Mar/2021:12:53:03 +0000] "GET /static/vendor/fontawesome-free/webfonts/fa-brands-400.woff2 HTTP/1.1" 200 0 "https://hridaya-agrawal.herokuapp.com/static/vendor/fontawesome-free/css/all.min.css" "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36"
-# 2021-03-25T12:53:03.543595+00:00 heroku[router]: at=info method=GET path="/static/vendor/fontawesome-free/webfonts/fa-brands-400.woff2" host=hridaya-agrawal.herokuapp.com request_id=87428b8b-b42b-4b35-916e-cc73d598e2a6 fwd="5.29.38.179" dyno=web.1 connect=1ms service=16ms status=200 bytes=76923 protocol=https
-# 2021-03-25T12:53:03.544028+00:00 app[web.1]: 10.41.141.207 - - [25/Mar/2021:12:53:03 +0000] "GET /static/vendor/fontawesome-free/webfonts/fa-solid-900.woff2 HTTP/1.1" 200 0 "https://hridaya-agrawal.herokuapp.com/static/vendor/fontawesome-free/css/all.min.css" "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36"
-# 2021-03-25T12:53:03.550016+00:00 heroku[router]: at=info method=GET path="/static/vendor/fontawesome-free/webfonts/fa-solid-900.woff2" host=hridaya-agrawal.herokuapp.com request_id=ebf38495-166d-48b7-ac3e-46c4e9676c01 fwd="5.29.38.179" dyno=web.1 connect=1ms service=10ms status=200 bytes=79756 protocol=https
-# 2021-03-25T12:53:05.328534+00:00 heroku[router]: at=info method=GET path="/contact" host=hridaya-agrawal.herokuapp.com request_id=fac633cd-837f-41db-b4fb-1f6018d7294e fwd="5.29.38.179" dyno=web.1 connect=1ms service=26ms status=200 bytes=8960 protocol=https
-# 2021-03-25T12:53:05.328569+00:00 app[web.1]: 10.5.177.43 - - [25/Mar/2021:12:53:05 +0000] "GET /contact HTTP/1.1" 200 8613 "https://hridaya-agrawal.herokuapp.com/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36"
-# 2021-03-25T12:53:06.363326+00:00 app[web.1]: 10.5.177.43 - - [25/Mar/2021:12:53:06 +0000] "GET /about HTTP/1.1" 500 6738 "https://hridaya-agrawal.herokuapp.com/contact" "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36"
-# 2021-03-25T12:53:06.363967+00:00 heroku[router]: at=info method=GET path="/about" host=hridaya-agrawal.herokuapp.com request_id=2c18a633-fff8-4102-9393-d2ba671046c3 fwd="5.29.38.179" dyno=web.1 connect=1ms service=30ms status=500 bytes=7104 protocol=https
