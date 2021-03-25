@@ -692,9 +692,9 @@ def get_background(configuration='website_configuration'):
                 return background
             except (KeyError, TypeError):
                 try:
-                    return dict(background_image=get_data()["website_configuration"]["background_image"])
+                    return get_data()["website_configuration"]["background_image"]
                 except (KeyError, TypeError):
-                    return dict(background_image="")
+                    return ''
     except (KeyError, TypeError):
         return dict(background_image="")
 
