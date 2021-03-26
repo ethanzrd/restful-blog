@@ -425,6 +425,10 @@ def admin_redirect():
 
 def validate_route(route):
     try:
+        route = ''.join(route.split('api_')[1:])
+    except (IndexError, ValueError, TypeError):
+        return "unavailable"
+    try:
         data = get_data()["api_configuration"]
     except KeyError:
         return "unavailable"
@@ -1068,6 +1072,23 @@ def staff_only(func):
             abort(401)
         if current_user.admin is False and current_user.author is False:
             abort(403)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def api_route(func):
+    """Checks whether a route is available or raises the appropriate error."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        route_status = validate_route(func.__name__)
+        if route_status is not True:
+            if route_status == 'blocked':
+                return jsonify(response={"Route Blocked": "The requested route is blocked."}), 503
+            else:
+                return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
+                                                                            " is unavailable."}), 500
         return func(*args, **kwargs)
 
     return wrapper
@@ -2610,136 +2631,114 @@ def generate_key():
 
 
 @app.route('/api/all-posts')
+@api_route
 def api_all_posts():
-    route_status = validate_route('all_posts')
-    if route_status is True:
-        api_key = request.args.get('api_key')
-        if api_key is not None:
-            if validate_key(api_key) is True:
-                try:
-                    requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
-                    requesting_user.all_posts += 1
-                except AttributeError:
-                    return abort(500)
-                posts = get_posts()
-                posts_dict = {posts.index(post) + 1: {"author": post.author.name,
-                                                      "title": post.title,
-                                                      "subtitle": post.subtitle,
-                                                      "published_on": post.date,
-                                                      "contents": html2text(post.body).strip(),
-                                                      "img_url": post.img_url,
-                                                      "comments": [
-                                                          (
-                                                              comment.author.name,
-                                                              html2text(comment.comment).strip())
-                                                          for
-                                                          comment
-                                                          in post.comments]}
-                              for post in posts}
-                db.session.commit()
-                return jsonify(response=posts_dict), 200
-            else:
-                return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
+    api_key = request.args.get('api_key')
+    if api_key is not None:
+        if validate_key(api_key) is True:
+            try:
+                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                requesting_user.all_posts += 1
+            except AttributeError:
+                return abort(500)
+            posts = get_posts()
+            posts_dict = {posts.index(post) + 1: {"author": post.author.name,
+                                                  "title": post.title,
+                                                  "subtitle": post.subtitle,
+                                                  "published_on": post.date,
+                                                  "contents": html2text(post.body).strip(),
+                                                  "img_url": post.img_url,
+                                                  "comments": [
+                                                      (
+                                                          comment.author.name,
+                                                          html2text(comment.comment).strip())
+                                                      for
+                                                      comment
+                                                      in post.comments]}
+                          for post in posts}
+            db.session.commit()
+            return jsonify(response=posts_dict), 200
         else:
-            return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+            return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
     else:
-        if route_status == 'blocked':
-            return jsonify(response={"Route Blocked": "The requested route is blocked."}), 503
-        else:
-            return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
-                                                                        " is unavailable."}), 500
+        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
 
 
 @app.route('/api/random-post')
+@api_route
 def api_random_post():
-    route_status = validate_route("random_post")
-    if route_status is True:
-        api_key = request.args.get('api_key')
-        if api_key is not None:
-            if validate_key(api_key) is True:
-                try:
-                    requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
-                    requesting_user.random_post += 1
-                except AttributeError:
-                    return abort(500)
-                try:
-                    post = random.choice(get_posts())
-                except IndexError:
-                    post_dict = {}
-                else:
-                    post_dict = {"post": {"author": post.author.name,
-                                          "title": post.title,
-                                          "subtitle": post.subtitle,
-                                          "published_on": post.date,
-                                          "contents": html2text(post.body).strip(),
-                                          "img_url": post.img_url,
-                                          "comments": [(comment.author.name, html2text(comment.comment).strip()) for
-                                                       comment
-                                                       in post.comments]
-                                          }}
-                db.session.commit()
-                return jsonify(response=post_dict), 200
+    api_key = request.args.get('api_key')
+    if api_key is not None:
+        if validate_key(api_key) is True:
+            try:
+                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                requesting_user.random_post += 1
+            except AttributeError:
+                return abort(500)
+            try:
+                post = random.choice(get_posts())
+            except IndexError:
+                post_dict = {}
             else:
-                return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
+                post_dict = {"post": {"author": post.author.name,
+                                      "title": post.title,
+                                      "subtitle": post.subtitle,
+                                      "published_on": post.date,
+                                      "contents": html2text(post.body).strip(),
+                                      "img_url": post.img_url,
+                                      "comments": [(comment.author.name, html2text(comment.comment).strip()) for
+                                                   comment
+                                                   in post.comments]
+                                      }}
+            db.session.commit()
+            return jsonify(response=post_dict), 200
         else:
-            return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+            return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
     else:
-        if route_status == 'blocked':
-            return jsonify(response={"Route Blocked": "The requested route is blocked."}), 503
-        else:
-            return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
-                                                                        " is unavailable."}), 500
+        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
 
 
 @app.route('/api/users')
+@api_route
 def api_all_users():
-    route_status = validate_route('users')
-    if route_status is True:
-        api_key = request.args.get('api_key')
-        if api_key is not None:
-            if validate_key(api_key):
-                try:
-                    requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
-                    requesting_user.all_users += 1
-                except AttributeError:
-                    return abort(500)
-                users = User.query.all()
-                users_dict = {users.index(user) + 1: {"username": user.name,
-                                                      "permissions":
-                                                          "Administrator" if user.admin is True else "Author"
-                                                          if user.author is True
-                                                          else "Registered User" if user.confirmed_email is True
-                                                          else None,
-                                                      "is_developer": True if
-                                                      ApiKey.query.filter_by(developer_id=user.id)
-                                                      is not None else False,
-                                                      "posts": {user.posts.index(post) + 1: get_post_dict(post) for post
-                                                                in
-                                                                user.posts},
-                                                      "comments": {
-                                                          user.comments.index(comment) + 1: {"comment": comment.comment,
-                                                                                             "on_post":
-                                                                                                 comment.parent_post
-                                                                                                     .title,
-                                                                                             "post_author":
-                                                                                                 comment.parent_post
-                                                                                                     .author.name}
-                                                          for comment in user.comments}}
-                              for user in users if user.confirmed_email is True}
-                db.session.commit()
-                return jsonify(response=users_dict)
-            else:
-                return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
+    api_key = request.args.get('api_key')
+    if api_key is not None:
+        if validate_key(api_key):
+            try:
+                requesting_user = ApiKey.query.filter_by(api_key=api_key).first()
+                requesting_user.all_users += 1
+            except AttributeError:
+                return abort(500)
+            users = User.query.all()
+            users_dict = {users.index(user) + 1: {"username": user.name,
+                                                  "permissions":
+                                                      "Administrator" if user.admin is True else "Author"
+                                                      if user.author is True
+                                                      else "Registered User" if user.confirmed_email is True
+                                                      else None,
+                                                  "is_developer": True if
+                                                  ApiKey.query.filter_by(developer_id=user.id)
+                                                  is not None else False,
+                                                  "posts": {user.posts.index(post) + 1: get_post_dict(post) for post
+                                                            in
+                                                            user.posts},
+                                                  "comments": {
+                                                      user.comments.index(comment) + 1: {"comment": comment.comment,
+                                                                                         "on_post":
+                                                                                             comment.parent_post
+                                                                                                 .title,
+                                                                                         "post_author":
+                                                                                             comment.parent_post
+                                                                                                 .author.name}
+                                                      for comment in user.comments}}
+                          for user in users if user.confirmed_email is True}
+            db.session.commit()
+            return jsonify(response=users_dict)
         else:
-            return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+            return jsonify(response={"Malformed API Request": "API Key is Invalid or Blocked."}), 401
     else:
-        if route_status == 'blocked':
-            return jsonify(response={"Route Blocked": "The requested route is blocked."}), 503
-        else:
-            return jsonify(response={"Route Configuration Unavailable": "The requested route configuration"
-                                                                        " is unavailable."}), 500
-          
-          
+        return jsonify(response={"Malformed API Request": "Invalid API Key."}), 401
+
 
 # ------------------ SERVER CONFIG ------------------
 
