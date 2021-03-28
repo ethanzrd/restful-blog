@@ -14,14 +14,15 @@
             <div class="row">
                 <div class="col-lg-8 col-md-10 mx-auto">
                     {% if deleted != "True" %}
-                    <div style="color: {{navbar}}" class="post-heading">
+                    <div class="post-heading" style="color: {{navbar}}">
                         <h1>{% if comment != True %}{{post.title}}{% else %}{{original_comment.author.name}}'s Comment{%
                             endif %}</h1>
-                        <h2 class="subheading" style="color: {{navbar}}">{% if comment != True %}{{post.subtitle}}{% else %}Viewing
+                        <h2 class="subheading" style="color: {{navbar}}">{% if comment != True %}{{post.subtitle}}{%
+                            else %}Viewing
                             {{original_comment.author.name}}'s Comment on {{original_comment.parent_post.title}}{% endif
                             %}</h2>
                         <span class="meta" style="color: {{navbar}}">{% if comment != True %}Posted{% else %}Commented{% endif %} by
-                <a style="color: {{navbar}}" href="{{ url_for('user_page', user_id=post.author.id) }}">{% if comment != True %}{{post.author.name}}{% else %}{{original_comment.author.name}}{% endif %}</a>
+                <a href="{{ url_for('user_page', user_id=post.author.id) }}" style="color: {{navbar}}">{% if comment != True %}{{post.author.name}}{% else %}{{original_comment.author.name}}{% endif %}</a>
                 on {% if comment != True %}{{post.date}}{% else %}{{original_comment.date}}{% endif %}{% if comment == True %}<br><br><a
                                     href="{{ url_for('show_post', post_id=post.id) }}"
                                     style="color: {{navbar}}; margin-top: 10px; text-decoration: none;">Back To Post</a>{% endif %}<br><br>{% if current_user.is_authenticated and current_user.admin == True or current_user.is_authenticated and current_user.author == True and post.author.email == current_user.email %}
@@ -42,14 +43,16 @@
                         <div class="post-heading" style="color: {{navbar}}">
                             <h1 style="color: {{navbar}}">{% if comment != True %}{{post[1]["post_title"]}}{% else
                                 %}{{original_comment["author"]}}'s Comment{% endif %}</h1>
-                            <h2 class="subheading" style="color: {{navbar}}">{% if comment != True %}{{post[1]["subtitle"]}}{% else %}Viewing
+                            <h2 class="subheading" style="color: {{navbar}}">{% if comment != True
+                                %}{{post[1]["subtitle"]}}{% else %}Viewing
                                 {{original_comment["author"]}}'s Comment on {{post[1]["post_title"]}}{% endif %}</h2>
                             <span class="meta" style="color: {{navbar}}">{% if comment != True %}Posted{% else %}Commented{% endif %} by
-              <a style="color: {{navbar}}" href="{{ url_for('user_page', user_id=post[1]['author_id']) }}">{% if comment != True %}{{post[1]["author"]}}{% else %}{{original_comment["author"]}}{% endif %}</a>
-              on {% if comment != True %}{{post[1]["date"]}}{% else %}{{post[1]["post_title"]}}{% endif %}{% if comment != True and current_user.is_authenticated and current_user.admin == True or comment != True and current_user.is_authenticated and current_user.author == True and current_user.email == post[1]["author_email"] %}<br><br>
-                        <a style="color: {{navbar}}" href="{{ url_for('recover_post', post_id=post[0]) }}">Recover Post</a>{% endif %}
+              <a href="{{ url_for('user_page', user_id=post[1]['author_id']) }}" style="color: {{navbar}}">{% if comment != True %}{{post[1]["author"]}}{% else %}{{original_comment["author"]}}{% endif %}</a>
+              on {% if comment != True %}{{post[1]["date"]}}{% else %}{{post[1]["post_title"]}}{% endif %}{% if comment != True and current_user.is_authenticated and current_user.admin == True and current_user.email == post[1]["author_email"] or comment != True and current_user.is_authenticated and current_user.author == True and current_user.email == post[1]["author_email"] %}<br><br>
+                        <a href="{{ url_for('recover_post', post_id=post[0]) }}"
+                           style="color: {{navbar}}">Recover Post</a>{% endif %}
                         {% if comment != True and current_user.is_authenticated and current_user.admin == True %}<br><br><a
-                                        style="color: {{navbar}}" href="{{ url_for('perm_delete', post_id=post[0]) }}">Permanently Delete Post</a>{% endif %}{% if comment == True %}<br><br><a
+                                        href="{{ url_for('perm_delete', post_id=post[0]) }}" style="color: {{navbar}}">Permanently Delete Post</a>{% endif %}{% if comment == True %}<br><br><a
                                         href="{{ url_for('show_post', post_id=post[0], deleted='True') }}"
                                         style="color: {{navbar}}; margin-top: 10px; text-decoration: none;">Back To Post</a>{% endif %}</span>
                         </div>

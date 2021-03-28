@@ -39,7 +39,7 @@ import string
 # ------------------ APPLICATION CONFIG BLOCK ------------------
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "string")
 ckeditor = CKEditor(app)
 Bootstrap(app)
 months = [(i, dt.date(2008, i, 1).strftime('%B')) for i in range(1, 13)]
@@ -47,11 +47,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 587
-app.config["MAIL_USERNAME"] = os.environ.get('EMAIL')
-app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD')
+app.config["MAIL_USERNAME"] = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('PASSWORD', 'nblvekcqgyhmpqbu')
 app.config['MAIL_USE_TLS'] = True
 app.config['JSON_SORT_KEYS'] = False
-EMAIL = os.environ.get('EMAIL')
+EMAIL = os.environ.get('EMAIL', 'gm.sobig@gmail.com')
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager()
@@ -83,6 +83,7 @@ class User(UserMixin, db.Model):
     replies = relationship("Reply", back_populates="author")
     api_key = relationship("ApiKey", back_populates="developer")
     deletion_report = relationship('DeletionReport', back_populates='user')
+    notifications = relationship("Notification", back_populates='user')
 
 
 # ------------------ END BLOCK ------------------
@@ -102,6 +103,30 @@ class DeletionReport(db.Model):
     approval_link = db.Column(db.String(1000), default='')
     rejection_link = db.Column(db.String(1000), default='')
     date = db.Column(db.String(250), default='')
+
+
+# ------ END ------
+
+
+# ------ NOTIFICATIONS TABLE ------
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = relationship("User", back_populates='notifications')
+    comment_id = db.Column(db.Integer, db.ForeignKey("comments.id"))
+    parent_comment = relationship("Comment", back_populates='notification')
+    reply_id = db.Column(db.Integer, db.ForeignKey("replies.id"))
+    parent_reply = relationship("Reply", back_populates='notification')
+    category = db.Column(db.String(300), nullable=False)
+    by_user = db.Column(db.String(1200), nullable=False)
+    user_name = db.Column(db.String(1200), nullable=False)
+    body = db.Column(db.String(1200), default='')
+    date = db.Column(db.String(250), default='')
+
+
+# ------ END ------
 
 
 # ------ API KEY TABLE ------
@@ -152,6 +177,7 @@ class Comment(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"))
     parent_post = relationship("BlogPost", back_populates='comments')
     replies = relationship("Reply", back_populates='parent_comment')
+    notification = relationship("Notification", back_populates='parent_comment')
     comment = db.Column(db.Text, nullable=False)
     date = db.Column(db.String(250), nullable=False)
 
@@ -167,6 +193,7 @@ class Reply(db.Model):
     author = relationship("User", back_populates="replies")
     comment_id = db.Column(db.Integer, db.ForeignKey("comments.id"))
     parent_comment = relationship("Comment", back_populates='replies')
+    notification = relationship("Notification", back_populates='parent_reply')
     reply = db.Column(db.Text, nullable=False)
     date = db.Column(db.String(250), nullable=False)
 
@@ -185,7 +212,7 @@ class DeletedPost(db.Model):
 # ------ END ------
 
 
-# ------ DELETED POSTS TABLE ------
+# ------ DATA TABLE ------
 
 class Data(db.Model):
     __tablename__ = 'data_table'
@@ -297,6 +324,14 @@ def clean_posts():
                                   User.query.filter_by(email=reply["author_email"]).first() is not None]
 
 
+def clean_notifications(category):
+    if category in ['comment', 'reply']:
+        [db.session.delete(notification) for notification in Notification.query.filter_by(category=category).all()
+         if eval(f"notification.parent_{category}") is None]
+    else:
+        return abort(403)
+
+
 def generate_date():  # GET THE CURRENT DATE IN A STRING FORMAT
     now = dt.datetime.now()
     current_month = [month for month in months if now.month == month[0]][0][1]
@@ -328,7 +363,7 @@ def send_mail(msg):
 
 def delete_notification(email, name, action_user, action_title, action_reason):
     msg = Message('Account Deleted', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
-    msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+    msg.body = f"Hello {name}, this is an automatic email from {get_name('m')} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account was deleted by {action_user} due to "{action_title}".\n\n' \
                f'Deletion reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
@@ -339,7 +374,7 @@ def delete_notification(email, name, action_user, action_title, action_reason):
 def request_notification(email, name, decision):
     msg = Message('Deletion Request', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
     if decision:
-        msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+        msg.body = f"Hello {name}, this is an automatic email from {get_name('m')} to notify you of recent" \
                    f" events that occurred in regards to your account.\n\n" \
                    f"Your Deletion Request was {decision}.\n\n" \
                    f"If you believe that a mistake was made, please contact us by replying to this email or via our" \
@@ -355,7 +390,7 @@ def set_notification(category, email, name, action_user, action_reason):
     else:
         msg = Message(f'Account set as {category}', sender=os.environ.get('EMAIL', EMAIL), recipients=[email,
                                                                                                        support_email])
-    msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+    msg.body = f"Hello {name}, this is an automatic email from {get_name('m')} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account was set as an {category} by {action_user}.\n\n' \
                f'Reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
@@ -372,7 +407,7 @@ def remove_notification(category, email, name, action_user, action_reason):
         msg = Message(f'Account removed as {category}', sender=os.environ.get('EMAIL', EMAIL), recipients=[email,
                                                                                                            support_email
                                                                                                            ])
-    msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+    msg.body = f"Hello {name}, this is an automatic email from {get_name('m')} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account was removed as an {category} by {action_user}.\n\n' \
                f'Reasoning by actioning staff member:\n\n{html2text(action_reason)}\n\n' \
@@ -388,20 +423,21 @@ def contact_notification(email, name, action_reason):
     else:
         if support_email is None:
             return False
-    msg = Message(f"{get_name()} - Contact Inquiry", sender=os.environ.get('EMAIL', EMAIL), recipients=[support_email])
-    msg.body = f"This is an automatic email from {get_name()} to notify you of a" \
+    msg = Message(f"{get_name('m')} - Contact Inquiry", sender=os.environ.get('EMAIL', EMAIL),
+                  recipients=[support_email])
+    msg.body = f"This is an automatic email from {get_name('m')} to notify you of a" \
                f" user inquiry.\n\n" \
                f'Name: {name}\n\n' \
                f'Email: {email}\n\n' \
                f'Message:\n\n{html2text(action_reason)}' \
-               f'Note: This email was set as a support email for {get_name()}, if you are not familiar with the' \
+               f'Note: This email was set as a support email for {get_name("m")}, if you are not familiar with the' \
                f' source of this email, please contact us by replying to this email or via our website.'
     send_mail(msg)
 
 
 def password_notification(email, name, date):
     msg = Message(f'Password Changed', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
-    msg.body = f"Hello {name}, this is an automatic email from {get_name()} to notify you of recent" \
+    msg.body = f"Hello {name}, this is an automatic email from {get_name('m')} to notify you of recent" \
                f" events that occurred in regards to your account.\n\n" \
                f'Your account password was changed at {date}.\n\n' \
                f"If this wasn't you, contact us by replying to this email or via our website."
@@ -410,8 +446,8 @@ def password_notification(email, name, date):
 
 def support_notification(email, link):
     msg = Message(f'Email set as support email', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
-    msg.body = f"Hello, this is an automatic email from {get_name()}." \
-               f" This email was specified as the support email for {get_name()} at {generate_date()}." \
+    msg.body = f"Hello, this is an automatic email from {get_name('m')}." \
+               f" This email was specified as the support email for {get_name('m')} at {generate_date()}." \
                f" To confirm and set this email as the support email, please go to the link below.\n\n" \
                f'{link}.\n\n' \
                f"Note: If you are unfamiliar with the source of this email, simply ignore it."
@@ -567,6 +603,34 @@ def get_options(requested_page: int = 1, website=False):
     return options
 
 
+def get_notifications(user, current_page):
+    print(user, current_page)
+    try:
+        user_notifications = user.notifications
+    except (AttributeError, TypeError):
+        return abort(400)
+    else:
+        if current_page is not None and current_page != 1:
+            try:
+                result = int(current_page) * 3
+            except TypeError:
+                return redirect(url_for('notifications'))
+            notification_items = user_notifications[result - 3:result]
+        else:
+            notification_items = user_notifications[:3]
+        try:
+            notifications_dict = [
+                {"date": notification.date, "by_user": User.query.filter_by(email=notification.by_user).first(),
+                 "user_name": notification.user_name,
+                 "parent_comment": notification.parent_comment,
+                 "parent_reply": notification.parent_reply,
+                 "category": notification.category, "body": notification.body} for
+                notification in notification_items]
+            return notifications_dict
+        except AttributeError:
+            return abort(500)
+
+
 def update_data(given_data):  # UPDATE CONFIG DATA
     new_data = Data(json_column=given_data)
     if len(Data.query.all()) > 0 and Data.query.all()[0] is not None:
@@ -670,12 +734,13 @@ def check_errors():  # CHECK FOR ERRORS IN DATA
 
 
 @app.context_processor
-def get_name():
+def get_name(configuration=None):
     data = get_data()
     try:
-        return dict(name=data["website_configuration"]["name"])
+        return dict(name=data["website_configuration"]["name"]) if configuration is None else \
+            data["website_configuration"]["name"]
     except (TypeError, IndexError, KeyError):
-        return dict(name="Website")
+        return dict(name="Website") if configuration is None else data["website_configuration"]["name"]
 
 
 @app.context_processor
@@ -704,11 +769,12 @@ def get_background(configuration='website_configuration'):
 
 
 @app.context_processor
-def get_navbar():
+def get_navbar(configuration=None):
     try:
-        return dict(navbar=get_data()["website_configuration"]["navigation_bar_color"])
+        return dict(navbar=get_data()["website_configuration"]["navigation_bar_color"]) if configuration is None else \
+            get_data()["website_configuration"]["navigation_bar_color"]
     except (KeyError, TypeError):
-        return dict(navbar='#FFFFFF')
+        return dict(navbar='#FFFFFF') if configuration is None else '#FFFFFF'
 
 
 @app.context_processor
@@ -1393,7 +1459,11 @@ def show_post(post_id):
                                   parent_post=requested_post,
                                   comment=form.comment.data,
                                   date=date)
-            db.session.add(new_comment)
+            new_notification = Notification(user=requested_post.author, by_user=current_user.email,
+                                            user_name=current_user.name,
+                                            parent_comment=new_comment, category='comment',
+                                            body=f"{current_user.name} commented on your post.", date=generate_date())
+            db.session.add(new_comment, new_notification)
             db.session.commit()
             return redirect(url_for('show_post', post_id=post_id))
         else:
@@ -1451,7 +1521,12 @@ def show_comment(comment_id):
                               parent_comment=requested_comment,
                               reply=html2text(form.reply.data),
                               date=generate_date())
-            db.session.add(new_reply)
+            new_notification = Notification(user=requested_comment.author, by_user=current_user.email,
+                                            user_name=current_user.name,
+                                            body=f"{current_user.name} replied to your comment on"
+                                                 f" {requested_comment.parent_post.title}", parent_reply=new_reply,
+                                            date=generate_date(), category='reply')
+            db.session.add(new_reply, new_notification)
             db.session.commit()
             return redirect(url_for('show_comment', comment_id=requested_comment.id, c_page=current_c))
         else:
@@ -1498,6 +1573,7 @@ def delete_reply(reply_id):
             if reply.parent_comment.parent_post.author.email == current_user.email \
                     or current_user.email == reply.author.email:
                 db.session.delete(reply)
+                clean_notifications('reply')
                 db.session.commit()
                 return redirect(url_for('show_comment', comment_id=reply.comment_id, c_page=current_c))
             else:
@@ -1571,7 +1647,7 @@ def edit_post(post_id):
 @app.route('/add', methods=['GET', 'POST'])
 @staff_only
 def add_post():
-    form = CreatePostForm(navigation_bar_color=get_navbar())
+    form = CreatePostForm(navigation_bar_color=get_navbar('p'))
     if form.validate_on_submit():
         date = generate_date()
         new_post = BlogPost(title=form.title.data,
@@ -1638,6 +1714,7 @@ def delete_post(post_id):
                 except (AttributeError, TypeError):
                     db.session.delete(reply_item)
             db.session.delete(post)
+            [clean_notifications(current_category) for current_category in ['comment', 'reply']]
             db.session.commit()
             return redirect(url_for('home'))
         else:
@@ -1718,6 +1795,7 @@ def delete_comment(comment_id):
                 replies = Reply.query.filter_by(parent_comment=comment).all()
                 [db.session.delete(reply) for reply in replies]
                 db.session.delete(comment)
+                [clean_notifications(current_category) for current_category in ['comment', 'reply']]
                 db.session.commit()
                 return redirect(url_for('show_post', post_id=current_post))
             else:
@@ -1730,6 +1808,23 @@ def delete_comment(comment_id):
 
 
 # ------ END ------
+
+
+# ------------------ END BLOCK ------------------
+
+
+# ------------------ NOTIFICATIONS BLOCK ------------------
+
+@app.route('/notifications')
+@login_required
+def notifications():
+    notification_page = request.args.get('page_id')
+    notification_items = get_notifications(current_user, notification_page if notification_page is not None else 1)
+    return render_template('user.html', notification=True, notification_items=notification_items,
+                           current_id=int(notification_page)
+                           if notification_page is not None and notification_page.isdigit() else 1,
+                           title="Notifications",
+                           subtitle="View all of your notifications.", posts_count=len(notification_items))
 
 
 # ------------------ END BLOCK ------------------
@@ -1753,7 +1848,7 @@ def settings():
             subtitle = "Here you will be able to access primary website configurations."
             errors = check_errors()
         else:
-            abort(403)
+            return abort(403)
     return render_template('index.html', settings="True", options=options,
                            posts_count=len(options),
                            errors=errors, title=title,
@@ -1994,6 +2089,10 @@ def make_admin(token):
                     set_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
                     user.author = False
                     user.admin = True
+                    new_notification = Notification(user=user, by_user=current_user.email, user_name=current_user.name,
+                                                    body=f"You were set as an administrator by {current_user.name}."
+                                                    , date=generate_date(), category='new')
+                    db.session.add(new_notification)
                     db.session.commit()
                     flash("The user has been set as an administrator, a notification has been sent to the user.")
                     return redirect(url_for('user_page', user_id=user_id))
@@ -2030,6 +2129,10 @@ def remove_admin(token):
                 if form.validate_on_submit():
                     remove_notification('administrator', user.email, user.name, current_user.name, form.reason.data)
                     user.admin = False
+                    new_notification = Notification(user=user, by_user=current_user.email, user_name=current_user.name,
+                                                    body=f"You were removed as an administrator by {current_user.name}."
+                                                    , date=generate_date(), cateogry='removal')
+                    db.session.add(new_notification)
                     db.session.commit()
                     flash("The user has been removed as an administrator, a notification has been sent to the user.")
                     return redirect(url_for('user_page', user_id=user_id))
@@ -2053,6 +2156,10 @@ def make_author(user_id):
             if form.validate_on_submit():
                 set_notification('author', user.email, user.name, current_user.name, form.reason.data)
                 user.author = True
+                new_notification = Notification(user=user, by_user=current_user.email, user_name=current_user.name,
+                                                body=f"You were set as an author by {current_user.name}.",
+                                                date=generate_date(), category='new')
+                db.session.add(new_notification)
                 db.session.commit()
                 flash("This user has been set as an author, a notification has been sent to the user.")
                 return redirect(url_for('user_page', user_id=user_id))
@@ -2076,6 +2183,10 @@ def remove_author(user_id):
             if form.validate_on_submit():
                 remove_notification('author', user.email, user.name, current_user.name, form.reason.data)
                 user.author = False
+                new_notification = Notification(user=user, by_user=current_user.email, user_name=current_user.name,
+                                                body=f"You were removed as an author by {current_user.name}.",
+                                                date=generate_date(), category='removal')
+                db.session.add(new_notification)
                 db.session.commit()
                 flash("This user has been removed as an author, a notification has been sent to the user.")
                 return redirect(url_for('user_page', user_id=user_id))
@@ -2245,7 +2356,7 @@ def request_deletion():
                     db.session.delete(requested_user)
                     db.session.commit()
                     flash("Your account has been successfully deleted.")
-                    return redirect(url_for('home', cateogry='success'))
+                    return redirect(url_for('home', category='success'))
                 else:
                     explanation = form.explanation.data if any(form.explanation.data) \
                         else "No additional info provided."
@@ -2395,7 +2506,7 @@ def verify_forget():
             msg = Message('Forget Password', sender=os.environ.get('EMAIL', EMAIL), recipients=[email])
             link = url_for('forget_password', token=token, email=email, _external=True)
             msg.body = f"Hello {name}, you have recently requested a password change," \
-                       f"please go to this link to reset your password.\n\n{link}\n\n" \
+                       f" please go to this link to reset your password.\n\n{link}\n\n" \
                        f"If this wasn't you, please contact us by replying to this email or via our website."
             send_mail(msg)
             flash("A password reset email has been sent to you.")
@@ -2584,6 +2695,10 @@ def block_key(key_id):
     if requested_key is not None:
         if requested_key.blocked is False:
             requested_key.blocked = True
+            new_notification = Notification(user=requested_key.developer, by_user=current_user.email,
+                                            body=f"Your API Key has been blocked by {current_user.name}.",
+                                            date=generate_date(), category='block', user_name=current_user.name)
+            db.session.add(new_notification)
             db.session.commit()
             flash("This API Key has been blocked successfully.")
             return redirect(url_for('user_page', current_mode='api', user_id=requested_key.developer_id))
@@ -2601,6 +2716,10 @@ def unblock_key(key_id):
     if requested_key is not None:
         if requested_key.blocked is True:
             requested_key.blocked = False
+            new_notification = Notification(user=requested_key.developer, by_user=current_user.email,
+                                            body=f"Your API Key has been unblocked by {current_user.name}.",
+                                            date=generate_date(), category='unblock', user_name=current_user.name)
+            db.session.add(new_notification)
             db.session.commit()
             flash("This API Key has been unblocked successfully.")
             return redirect(url_for('user_page', current_mode='api', user_id=requested_key.developer_id))

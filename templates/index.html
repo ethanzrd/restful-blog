@@ -283,12 +283,12 @@
                                         <li><a href="{{ url_for('settings', mode='admin') }}"><h4>Settings</h4></a></li>
                                         {% endif %}
                                         {% if current_user.is_authenticated %}
+                                        <li><a href="{{ url_for('notifications') }}"><h4>Notifications</h4></a>
                                         <li><a href="{{ url_for('settings') }}"><h4>Account Settings</h4></a></li>
-                                        {% endif %}
                                         <li><a href="{{ url_for('user_page', user_id=current_user.id) }}"><h4>My
-                                            Profile</h4>
-                                        </a>
+                                            Profile</h4></a>
                                         </li>
+                                        {% endif %}
                                     </ul>
                                     {% endif %}
                                     {% else %}
@@ -399,11 +399,11 @@
                         {% if hr_valid %}
                         <hr>
                         {% endif %}
-
-                        {% include "footer.html" %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+    {% include "footer.html" %}
     {% endblock %}

@@ -44,6 +44,7 @@
             {% endfor %}
             {% endwith %}
             {% set valid = True %}
+            {% if notification != True %}
             {% if current_mode != 'api' and current_mode != 'delete-report' %}
             {% if current_mode == 'posts' %}
             {% if posts_count != 0 %}
@@ -190,8 +191,49 @@
             {% endfor %}
             {% endif %}
             {% endif %}
+            {% else %}
+            {% if posts_count != 0 %}
+            {% for notification in notification_items %}
+            <ul class="commentList" style="list-style-type: none;">
+                {% set category = notification['category'] %}
+                <li>
+                    <div class="commenterImage">
+                        <img src="{{ notification['by_email'] | gravatar }}" style="border-radius: 100px;"/>
+                    </div>
+                    <div>
+
+                                <span class="date sub-text" style="margin-left: 10px; font-size: 15px; color: #025955;">{% if notification['by_user'] != None %}<a
+                                        href="{{ url_for('user_page', user_id=notification['by_user'].id) }}"
+                                        style="text-decoration: none;">{{ notification['user_name'] }}</a>{% else %}{{ notification['user_name'] }} (Deleted User) {% endif %} | {{ notification["date"] }} {% if category != 'new' and category != 'removal' %}| <a style="text-decoration: none;" href="{% if category == 'comment' %}{{ url_for('show_comment', comment_id=notification['parent_comment'].id) }}{% elif category == 'reply' %}{{ url_for('show_comment', comment_id=notification['parent_reply'].parent_comment.id) }}{% elif category == 'block' or category == 'unblock' %}{{ url_for('user_page', user_id=current_user.id, current_mode='api') }}{% endif %}">View {% if category == 'comment' %}Comment{% elif category == 'reply' %}Comment{% elif category == 'block' or category == 'unblock' %}API Key Information{% endif %}</a>{% endif %}</span>
+                        <span style="margin-left: 20px;"><br><br>{{ notification["body"] }}<br><br></span>
+                    </div>
+                    <hr style="margin: 5px 0 0 0;">
+                </li>
+            </ul>
+            {% endfor %}
+            {% else %}
+            {% set valid = False %}
+            {% for i in range(3): %}
+            <div class="post-preview">
+                <a href="#">
+                    <h2 class="post-title">
+                        Nothing to show here.
+                    </h2>
+                    <h3 class="post-subtitle">
+                        Looks like there's nothing here.
+                    </h3>
+                </a>
+                <p class="post-meta">
+                    <a href="#">You've reached a dead end, my friend.</a>
+                </p>
+            </div>
+            <hr>
+            {% endfor %}
+            {% endif %}
+            {% endif %}
             <!-- Pager -->
             <div class="clearfix">
+                {% if notification != True %}
                 {% if current_id == 1 %}
                 <div class="dropdown">
                     <button class="btn btn-primary float-left" data-toggle="dropdown" type="button">
@@ -242,7 +284,8 @@
                         <li><a href="{{ url_for('block_key', key_id=all_posts['key_id']) }}"><h4>Block API Key</h4></a>
                         </li>
                         {% else %}
-                        <li><a href="{{ url_for('unblock_key', key_id=all_posts['key_id']) }}"><h4>Unblock API Key</h4></a>
+                        <li><a href="{{ url_for('unblock_key', key_id=all_posts['key_id']) }}"><h4>Unblock API Key</h4>
+                        </a>
                         </li>
                         {% endif %}
                         {% endif %}
@@ -271,11 +314,31 @@
                        href="{{ url_for('page', page_id=current_id - 1, current_mode=current_mode, user_id=user.id) }}">&larr;
                         PREVIOUS PAGE</a>
                     {% endif %}
+                    {% else %}
+                    {% if posts_count >= 3 %}
+                    <a class="btn btn-primary float-right"
+                       href="{{ url_for('notifications', page_id=current_id + 1) }}">NEXT
+                        PAGE
+                        &rarr;</a>
+                    {% endif %}
+                    {% if current_id > 1 %}
+                    <a class="btn btn-primary float-left"
+                       href="{{ url_for('notifications', page_id=current_id - 1) }}">&larr;
+                        PREVIOUS PAGE</a>
+                    {% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>
+        {% if notification %}
+        {% if current_id > 1 or posts_count >= 3 %}
+        <hr>
+        {% endif %}
+        {% endif %}
     </div>
+    {% if notification != True %}
     <hr>
+    {% endif %}
 </div>
 
 {% include "footer.html" %}
